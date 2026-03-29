@@ -1,6 +1,8 @@
 # control_window.py
 """主控制面板 — 应用的核心协调者，集成所有模块"""
 
+from enum import StrEnum
+
 from PySide6.QtCore import QTimer, QThread, Signal, QPoint
 from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import (
@@ -22,6 +24,17 @@ from selector import SelectionOverlay
 from border_window import BorderWindow
 from result_window import ResultWindow
 
+# 支持的语言列表
+SUPPORTED_LANGUAGES = ["中文", "日语", "英语"]
+
+
+class State(StrEnum):
+    """应用状态枚举"""
+    READY = "就绪"
+    RUNNING = "运行中"
+    PAUSED = "已暂停"
+    TRANSLATING = "翻译中..."
+
 
 class TranslationWorker(QThread):
     """后台翻译线程，避免阻塞主线程"""
@@ -40,6 +53,11 @@ class TranslationWorker(QThread):
         self._api_key = api_key
         self._base_url = base_url
         self._model = model
+        self._cancelled = False  # 取消标志
+
+    def cancel(self):
+        """请求取消翻译（协作式取消）"""
+        self._cancelled = True
 
     def run(self):
         """在后台线程中执行翻译"""
@@ -52,29 +70,27 @@ class TranslationWorker(QThread):
                 base_url=self._base_url,
                 model=self._model,
             )
+            # 如果已取消，不发送结果
+            if self._cancelled:
+                return
             # 通过信号发送结果
             if result.startswith("错误："):
                 self.translation_failed.emit(result)
             else:
                 self.translation_completed.emit(result)
         except Exception as e:
-            self.translation_failed.emit(f"错误：{type(e).__name__} — {e}")
+            # 如果已取消，不发送错误信息
+            if not self._cancelled:
+                self.translation_failed.emit(f"错误：{type(e).__name__} — {e}")
 
 
 class ControlWindow(QWidget):
     """主控制面板，协调所有模块"""
 
-    # 状态枚举
-    class State:
-        READY = "就绪"
-        RUNNING = "运行中"
-        PAUSED = "已暂停"
-        TRANSLATING = "翻译中..."
-
     def __init__(self):
         super().__init__()
         self._config = Config()
-        self._state = self.State.READY
+        self._state = State.READY
         self._selection = None  # (x, y, width, height)
         self._is_translating = False  # 防止翻译重叠
         self._translation_worker = None  # 后台翻译线程
@@ -105,13 +121,13 @@ class ControlWindow(QWidget):
         lang_layout = QHBoxLayout()
         lang_layout.addWidget(QLabel("源语言:"))
         self._source_lang_combo = QComboBox()
-        self._source_lang_combo.addItems(["中文", "日语", "英语"])
+        self._source_lang_combo.addItems(SUPPORTED_LANGUAGES)
         self._source_lang_combo.setCurrentText("日语")  # 默认源语言为日语
         lang_layout.addWidget(self._source_lang_combo)
 
         lang_layout.addWidget(QLabel("目标语言:"))
         self._target_lang_combo = QComboBox()
-        self._target_lang_combo.addItems(["中文", "日语", "英语"])
+        self._target_lang_combo.addItems(SUPPORTED_LANGUAGES)
         self._target_lang_combo.setCurrentText("中文")  # 默认目标语言为中文
         lang_layout.addWidget(self._target_lang_combo)
         lang_layout.addStretch()
@@ -184,9 +200,9 @@ class ControlWindow(QWidget):
 
     def _update_button_states(self):
         """根据当前状态更新按钮启用状态"""
-        is_ready = self._state == self.State.READY
-        is_running = self._state == self.State.RUNNING
-        is_paused = self._state == self.State.PAUSED
+        is_ready = self._state == State.READY
+        is_running = self._state == State.RUNNING
+        is_paused = self._state == State.PAUSED
 
         self._select_btn.setEnabled(is_ready)
         # 开始按钮：就绪时可启动，暂停时可恢复
@@ -205,7 +221,7 @@ class ControlWindow(QWidget):
         self._api_url_edit.setEnabled(is_ready)
         self._model_edit.setEnabled(is_ready)
 
-    def _set_state(self, new_state: str):
+    def _set_state(self, new_state: State):
         """设置新状态"""
         self._state = new_state
         self._set_status(new_state)
@@ -213,7 +229,7 @@ class ControlWindow(QWidget):
 
     def _on_select_region(self):
         """选择区域按钮点击"""
-        if self._state != self.State.READY:
+        if self._state != State.READY:
             return
 
         self._selection_overlay = SelectionOverlay()
@@ -243,76 +259,71 @@ class ControlWindow(QWidget):
 
     def _on_start(self):
         """开始按钮点击（也用于从暂停恢复）"""
-        if self._state == self.State.PAUSED:
-            # 从暂停恢复
-            self._state = self.State.RUNNING
-            self._result_window.clear_text()
-            self._start_timer()
-            self._set_status("运行中")
-            self._update_button_states()
+        if self._state == State.PAUSED:
+            # 从暂停恢复，跳过验证
+            pass
+        elif self._state == State.READY:
+            if self._selection is None:
+                QMessageBox.warning(self, "未选择区域", "请先选择截图区域")
+                return
+            if not self._config.has_api_key:
+                QMessageBox.warning(self, "API Key 未配置", "请配置 API Key")
+                return
+        else:
             return
 
-        if self._state != self.State.READY:
-            return
-
-        if self._selection is None:
-            QMessageBox.warning(self, "未选择区域", "请先选择截图区域")
-            return
-
-        if not self._config.has_api_key:
-            QMessageBox.warning(self, "API Key 未配置", "请配置 API Key")
-            return
-
-        # 启动定时器，首次翻译由定时器自然触发
-        self._state = self.State.RUNNING
+        # 统一的启动/恢复逻辑
+        self._state = State.RUNNING
         self._start_timer()
+        self._result_window.set_text("初始化中，请稍候...")
         self._set_status("运行中")
         self._update_button_states()
+        self._execute_translation()
 
     def _on_pause(self):
-        """暂停/继续按钮点击"""
-        if self._state == self.State.RUNNING:
-            self._timer.stop()
-            
-            # 取消正在运行的翻译线程
-            if self._translation_worker is not None and self._translation_worker.isRunning():
-                self._translation_worker.terminate()
-                self._translation_worker.wait()
-                self._is_translating = False
-            
-            self._state = self.State.PAUSED
-            self._set_status("已暂停")
-            self._update_button_states()
-        elif self._state == self.State.PAUSED:
-            self._state = self.State.RUNNING
-            self._result_window.clear_text()
-            self._start_timer()
-            self._set_status("运行中")
-            self._update_button_states()
+        """暂停按钮点击"""
+        if self._state == State.RUNNING:
+            self._pause_translation()
 
     def _start_timer(self):
         """启动定时器"""
         interval_ms = self._interval_spin.value() * 1000
         self._timer.start(interval_ms)
 
+    def _pause_translation(self):
+        """暂停翻译"""
+        self._timer.stop()
+        self._cancel_current_worker()
+        self._state = State.PAUSED
+        self._set_status("已暂停")
+        self._update_button_states()
+
     def _on_stop(self):
         """停止按钮点击"""
         self._timer.stop()
-        
-        # 取消正在运行的翻译线程
-        if self._translation_worker is not None and self._translation_worker.isRunning():
-            self._translation_worker.terminate()
-            self._translation_worker.wait()
-            self._is_translating = False
-        
+        self._cancel_current_worker()
         self._selection = None
         self._border_window.clear_region()
         self._result_window.clear_text()
-        self._set_state(self.State.READY)
+        self._set_state(State.READY)
+
+    def _cancel_current_worker(self):
+        """取消当前正在运行的翻译线程"""
+        if self._translation_worker is not None and self._translation_worker.isRunning():
+            # 请求取消
+            self._translation_worker.cancel()
+            # 断开信号连接，忽略后续结果
+            try:
+                self._translation_worker.translation_completed.disconnect(self._on_translation_completed)
+                self._translation_worker.translation_failed.disconnect(self._on_translation_failed)
+                self._translation_worker.finished.disconnect(self._on_translation_finished)
+            except RuntimeError:
+                pass  # 信号已断开或对象已销毁
+            self._is_translating = False
 
     def _on_timer_tick(self):
         """定时器触发"""
-        if self._state != self.State.RUNNING:
+        if self._state != State.RUNNING:
             return
         
         # 如果上一次翻译还在进行，跳过本次
@@ -322,12 +333,12 @@ class ControlWindow(QWidget):
         self._execute_translation()
 
     def _execute_translation(self):
-        """执行截图和翻译（在后台线程中执行翻译）"""
+        """执行截图和翻译"""
         if self._selection is None:
             return
 
         self._is_translating = True
-        self._set_status(self.State.TRANSLATING)
+        self._set_status(State.TRANSLATING)
 
         x, y, width, height = self._selection
 
@@ -383,13 +394,13 @@ class ControlWindow(QWidget):
             self._result_window.show()
         self._result_window.set_text(result)
         # 仅在运行状态下更新状态，暂停时保持暂停状态
-        if self._state == self.State.RUNNING:
-            self._set_status(self.State.RUNNING)
+        if self._state == State.RUNNING:
+            self._set_status(State.RUNNING)
 
     def _on_translation_failed(self, error_msg: str):
         """翻译失败回调（在主线程执行）"""
         # 仅在运行状态下更新状态，暂停时保持暂停状态
-        if self._state == self.State.RUNNING:
+        if self._state == State.RUNNING:
             self._set_status(error_msg)
 
     def _on_translation_finished(self):
@@ -399,12 +410,7 @@ class ControlWindow(QWidget):
     def closeEvent(self, event: QCloseEvent):
         """窗口关闭事件"""
         self._timer.stop()
-        
-        # 停止后台翻译线程
-        if self._translation_worker is not None and self._translation_worker.isRunning():
-            self._translation_worker.terminate()
-            self._translation_worker.wait()
-        
+        self._cancel_current_worker()
         self._border_window.close()
         if self._result_window is not None:
             self._result_window.close()
