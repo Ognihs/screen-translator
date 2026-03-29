@@ -1,7 +1,7 @@
 # control_window.py
 """主控制面板 — 应用的核心协调者，集成所有模块"""
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, QThread, Signal
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -23,6 +23,44 @@ from border_window import BorderWindow
 from result_window import ResultWindow
 
 
+class TranslationWorker(QThread):
+    """后台翻译线程，避免阻塞主线程"""
+
+    # 信号：翻译完成时发送结果
+    translation_completed = Signal(str)
+    # 信号：翻译失败时发送错误信息
+    translation_failed = Signal(str)
+
+    def __init__(self, image_data: bytes, source_lang: str, target_lang: str,
+                 api_key: str, base_url: str, model: str):
+        super().__init__()
+        self._image_data = image_data
+        self._source_lang = source_lang
+        self._target_lang = target_lang
+        self._api_key = api_key
+        self._base_url = base_url
+        self._model = model
+
+    def run(self):
+        """在后台线程中执行翻译"""
+        try:
+            result = translate_image(
+                image_data=self._image_data,
+                source_lang=self._source_lang,
+                target_lang=self._target_lang,
+                api_key=self._api_key,
+                base_url=self._base_url,
+                model=self._model,
+            )
+            # 通过信号发送结果
+            if result.startswith("错误："):
+                self.translation_failed.emit(result)
+            else:
+                self.translation_completed.emit(result)
+        except Exception as e:
+            self.translation_failed.emit(f"错误：{type(e).__name__} — {e}")
+
+
 class ControlWindow(QWidget):
     """主控制面板，协调所有模块"""
 
@@ -39,6 +77,7 @@ class ControlWindow(QWidget):
         self._state = self.State.READY
         self._selection = None  # (x, y, width, height)
         self._is_translating = False  # 防止翻译重叠
+        self._translation_worker = None  # 后台翻译线程
 
         # 子窗口
         self._border_window = BorderWindow()
@@ -234,6 +273,13 @@ class ControlWindow(QWidget):
         """暂停/继续按钮点击"""
         if self._state == self.State.RUNNING:
             self._timer.stop()
+            
+            # 取消正在运行的翻译线程
+            if self._translation_worker is not None and self._translation_worker.isRunning():
+                self._translation_worker.terminate()
+                self._translation_worker.wait()
+                self._is_translating = False
+            
             self._state = self.State.PAUSED
             self._set_status("已暂停")
             self._update_button_states()
@@ -252,6 +298,13 @@ class ControlWindow(QWidget):
     def _on_stop(self):
         """停止按钮点击"""
         self._timer.stop()
+        
+        # 取消正在运行的翻译线程
+        if self._translation_worker is not None and self._translation_worker.isRunning():
+            self._translation_worker.terminate()
+            self._translation_worker.wait()
+            self._is_translating = False
+        
         self._selection = None
         self._border_window.clear_region()
         self._result_window.clear_text()
@@ -269,7 +322,7 @@ class ControlWindow(QWidget):
         self._execute_translation()
 
     def _execute_translation(self):
-        """执行截图和翻译"""
+        """执行截图和翻译（在后台线程中执行翻译）"""
         if self._selection is None:
             return
 
@@ -279,15 +332,15 @@ class ControlWindow(QWidget):
         x, y, width, height = self._selection
 
         try:
-            # 截图
+            # 截图（在主线程执行，很快）
             image_data = capture_region(x, y, width, height)
 
             # 获取语言参数
             source_lang = self._source_lang_combo.currentText()
             target_lang = self._target_lang_combo.currentText()
 
-            # 翻译（使用用户配置的参数，有 fallback）
-            result = translate_image(
+            # 创建后台翻译线程
+            self._translation_worker = TranslationWorker(
                 image_data=image_data,
                 source_lang=source_lang,
                 target_lang=target_lang,
@@ -296,25 +349,47 @@ class ControlWindow(QWidget):
                 model=self._model_edit.text().strip() or self._config.model,
             )
 
-            # 显示结果
-            if self._result_window.isHidden():
-                self._result_window.show()
-            self._result_window.set_text(result)
+            # 连接信号
+            self._translation_worker.translation_completed.connect(self._on_translation_completed)
+            self._translation_worker.translation_failed.connect(self._on_translation_failed)
+            self._translation_worker.finished.connect(self._on_translation_finished)
 
-            # 检查是否包含错误前缀
-            if result.startswith("错误："):
-                self._set_status(result)
-            else:
-                self._set_status(self.State.RUNNING)
+            # 启动后台线程
+            self._translation_worker.start()
 
         except Exception as e:
             self._set_status(f"错误：{type(e).__name__} — {e}")
-        finally:
             self._is_translating = False
+
+    def _on_translation_completed(self, result: str):
+        """翻译完成回调（在主线程执行）"""
+        # 显示结果
+        if self._result_window.isHidden():
+            self._result_window.show()
+        self._result_window.set_text(result)
+        # 仅在运行状态下更新状态，暂停时保持暂停状态
+        if self._state == self.State.RUNNING:
+            self._set_status(self.State.RUNNING)
+
+    def _on_translation_failed(self, error_msg: str):
+        """翻译失败回调（在主线程执行）"""
+        # 仅在运行状态下更新状态，暂停时保持暂停状态
+        if self._state == self.State.RUNNING:
+            self._set_status(error_msg)
+
+    def _on_translation_finished(self):
+        """翻译线程结束回调（在主线程执行）"""
+        self._is_translating = False
 
     def closeEvent(self, event: QCloseEvent):
         """窗口关闭事件"""
         self._timer.stop()
+        
+        # 停止后台翻译线程
+        if self._translation_worker is not None and self._translation_worker.isRunning():
+            self._translation_worker.terminate()
+            self._translation_worker.wait()
+        
         self._border_window.close()
         if self._result_window is not None:
             self._result_window.close()

@@ -24,10 +24,11 @@ class ResultWindow(QWidget):
 
     def _init_ui(self):
         """初始化窗口 UI"""
-        # 置顶无边框窗口
+        # 置顶无边框窗口，使用 Tool 标志避免在任务栏显示
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
         )
         # 初始窗口大小和最小尺寸
         self.resize(400, 300)
