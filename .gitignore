@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment variables (contains sensitive API keys)
+.env
+
+# AI Stuff
+.roo/
+requirements/
+plans/

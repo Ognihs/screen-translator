@@ -1,0 +1,20 @@
+# config.py
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class Config:
+    """应用配置管理，从 .env 文件和环境变量加载设置"""
+
+    def __init__(self):
+        self.api_key: str = os.getenv("API_KEY", "") or ""
+        self.base_url: str = os.getenv("BASE_URL", "") or "https://api.openai.com/v1"
+        self.model: str = os.getenv("MODEL", "") or "gpt-4o"
+        interval_str = os.getenv("DEFAULT_INTERVAL", "") or "10"
+        self.default_interval: int = int(interval_str)
+
+    @property
+    def has_api_key(self) -> bool:
+        return bool(self.api_key.strip())
