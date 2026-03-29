@@ -61,9 +61,10 @@ class BorderWindow(QWidget):
 
         # 绘制矩形边框，略微调整以完整显示边框
         adjust = self.BORDER_WIDTH // 2
-        painter.drawRect(
+        painter.drawRoundedRect(
             adjust,
             adjust,
             self._region.width() - self.BORDER_WIDTH,
             self._region.height() - self.BORDER_WIDTH,
+            8, 8  # xRadius, yRadius
         )

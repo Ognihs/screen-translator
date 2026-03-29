@@ -4,7 +4,7 @@
 from enum import StrEnum
 
 from PySide6.QtCore import QTimer, QThread, Signal, QPoint
-from PySide6.QtGui import QCloseEvent, QGuiApplication
+from PySide6.QtGui import QCloseEvent, QGuiApplication, QMouseEvent
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -439,6 +439,13 @@ class ControlWindow(QWidget):
     def _on_translation_finished(self):
         """翻译线程结束回调（在主线程执行）"""
         self._is_translating = False
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """点击空白区域时清除焦点"""
+        focused = self.focusWidget()
+        if focused:
+            focused.clearFocus()
+        super().mousePressEvent(event)
 
     def closeEvent(self, event: QCloseEvent):
         """窗口关闭事件"""
