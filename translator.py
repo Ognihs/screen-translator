@@ -15,7 +15,7 @@ def translate_image(
     """将截图发送给多模态 API 进行翻译。
 
     Args:
-        image_data: PNG 格式的截图 bytes
+        image_data: JPEG 格式的截图 bytes
         source_lang: 源语言（中文/日语/英语）
         target_lang: 目标语言（中文/日语/英语）
         api_key: API 密钥
@@ -42,7 +42,7 @@ def translate_image(
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/png;base64,{b64_image}"
+                                "url": f"data:image/jpeg;base64,{b64_image}"
                             },
                         },
                     ],

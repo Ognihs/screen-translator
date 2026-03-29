@@ -15,6 +15,9 @@ class Config:
         interval_str = os.getenv("DEFAULT_INTERVAL", "") or "10"
         self.default_interval: int = int(interval_str)
 
+        jpeg_quality_str = os.getenv("JPEG_QUALITY", "") or "75"
+        self.jpeg_quality: int = max(1, min(95, int(jpeg_quality_str)))
+
     @property
     def has_api_key(self) -> bool:
         return bool(self.api_key.strip())

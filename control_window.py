@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
-from capture import capture_region
+from capture import capture_region, convert_to_jpeg
 from translator import translate_image
 from selector import SelectionOverlay
 from border_window import BorderWindow
@@ -360,6 +360,7 @@ class ControlWindow(QWidget):
             # 截图（在主线程执行，很快）
             # 使用物理像素坐标
             image_data = capture_region(physical_x, physical_y, physical_width, physical_height)
+            image_data = convert_to_jpeg(image_data, self._config.jpeg_quality)
 
             # 获取语言参数
             source_lang = self._source_lang_combo.currentText()

@@ -38,6 +38,40 @@ def test_default_values():
         assert cfg.default_interval == 10
 
 
+def test_jpeg_quality_default():
+    """测试 jpeg_quality 默认值为 75"""
+    with patch.dict(os.environ, {"JPEG_QUALITY": ""}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.jpeg_quality == 75
+
+
+def test_jpeg_quality_custom():
+    """测试 jpeg_quality 从环境变量读取"""
+    with patch.dict(os.environ, {"JPEG_QUALITY": "50"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.jpeg_quality == 50
+
+
+def test_jpeg_quality_clamped():
+    """测试 jpeg_quality 被正确 clamp 到 1-95 范围"""
+    with patch.dict(os.environ, {"JPEG_QUALITY": "100"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.jpeg_quality == 95
+
+    with patch.dict(os.environ, {"JPEG_QUALITY": "0"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.jpeg_quality == 1
+
+    with patch.dict(os.environ, {"JPEG_QUALITY": "-5"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.jpeg_quality == 1
+
+
 def test_has_api_key():
     """测试 API Key 是否已配置"""
     with patch.dict(os.environ, {"API_KEY": "test-key"}, clear=False):
