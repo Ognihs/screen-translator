@@ -1,7 +1,8 @@
 # control_window.py
 """主控制面板 — 应用的核心协调者，集成所有模块"""
 
-from PySide6.QtCore import QTimer, QThread, Signal
+from PySide6.QtCore import QTimer, QThread, Signal, QPoint
+from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -13,7 +14,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMessageBox,
 )
-from PySide6.QtGui import QCloseEvent
 
 from config import Config
 from capture import capture_region
@@ -331,9 +331,24 @@ class ControlWindow(QWidget):
 
         x, y, width, height = self._selection
 
+        # 获取屏幕的 devicePixelRatio，将逻辑像素转换为物理像素
+        # Qt 返回逻辑像素坐标，而 mss 需要物理像素坐标
+        dpr = 1.0
+        # 使用 screenAt 获取选区所在屏幕，支持多显示器不同 DPR 的场景
+        screen = QGuiApplication.screenAt(QPoint(x, y))
+        if screen:
+            dpr = screen.devicePixelRatio()
+
+        # 转换为物理像素坐标（使用 round 避免 DPR 为分数值时差 1 像素）
+        physical_x = round(x * dpr)
+        physical_y = round(y * dpr)
+        physical_width = round(width * dpr)
+        physical_height = round(height * dpr)
+
         try:
             # 截图（在主线程执行，很快）
-            image_data = capture_region(x, y, width, height)
+            # 使用物理像素坐标
+            image_data = capture_region(physical_x, physical_y, physical_width, physical_height)
 
             # 获取语言参数
             source_lang = self._source_lang_combo.currentText()
