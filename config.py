@@ -18,6 +18,8 @@ class Config:
         jpeg_quality_str = os.getenv("JPEG_QUALITY", "") or "75"
         self.jpeg_quality: int = max(1, min(95, int(jpeg_quality_str)))
 
+        self.reasoning_effort: str | None = os.getenv("REASONING_EFFORT", "") or None
+
     @property
     def has_api_key(self) -> bool:
         return bool(self.api_key.strip())

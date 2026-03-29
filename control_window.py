@@ -45,7 +45,8 @@ class TranslationWorker(QThread):
     translation_failed = Signal(str)
 
     def __init__(self, image_data: bytes, source_lang: str, target_lang: str,
-                 api_key: str, base_url: str, model: str):
+                 api_key: str, base_url: str, model: str,
+                 reasoning_effort: str | None = None):
         super().__init__()
         self._image_data = image_data
         self._source_lang = source_lang
@@ -53,6 +54,7 @@ class TranslationWorker(QThread):
         self._api_key = api_key
         self._base_url = base_url
         self._model = model
+        self._reasoning_effort = reasoning_effort
         self._cancelled = False  # 取消标志
 
     def cancel(self):
@@ -69,6 +71,7 @@ class TranslationWorker(QThread):
                 api_key=self._api_key,
                 base_url=self._base_url,
                 model=self._model,
+                reasoning_effort=self._reasoning_effort,
             )
             # 如果已取消，不发送结果
             if self._cancelled:
@@ -163,6 +166,29 @@ class ControlWindow(QWidget):
         model_layout.addWidget(self._model_edit, 1)
         layout.addLayout(model_layout)
 
+        # 推理深度
+        reasoning_layout = QHBoxLayout()
+        reasoning_layout.addWidget(QLabel("推理深度:"))
+        self._reasoning_combo = QComboBox()
+        self._reasoning_items = [
+            ("默认", None),
+            ("关闭", "none"),
+            ("低", "low"),
+            ("中", "medium"),
+            ("高", "high"),
+        ]
+        for text, _ in self._reasoning_items:
+            self._reasoning_combo.addItem(text)
+        # 从配置读取默认值
+        if self._config.reasoning_effort:
+            for i, (_, value) in enumerate(self._reasoning_items):
+                if value == self._config.reasoning_effort:
+                    self._reasoning_combo.setCurrentIndex(i)
+                    break
+        reasoning_layout.addWidget(self._reasoning_combo)
+        reasoning_layout.addStretch()
+        layout.addLayout(reasoning_layout)
+
         # 操作按钮
         btn_layout = QHBoxLayout()
         self._select_btn = QPushButton("选择区域")
@@ -220,6 +246,7 @@ class ControlWindow(QWidget):
         self._interval_spin.setEnabled(is_ready)
         self._api_url_edit.setEnabled(is_ready)
         self._model_edit.setEnabled(is_ready)
+        self._reasoning_combo.setEnabled(is_ready)
 
     def _set_state(self, new_state: State):
         """设置新状态"""
@@ -366,6 +393,10 @@ class ControlWindow(QWidget):
             source_lang = self._source_lang_combo.currentText()
             target_lang = self._target_lang_combo.currentText()
 
+            # 获取推理深度
+            reasoning_index = self._reasoning_combo.currentIndex()
+            reasoning_effort = self._reasoning_items[reasoning_index][1]
+
             # 创建后台翻译线程
             self._translation_worker = TranslationWorker(
                 image_data=image_data,
@@ -374,6 +405,7 @@ class ControlWindow(QWidget):
                 api_key=self._config.api_key,
                 base_url=self._api_url_edit.text().strip() or self._config.base_url,
                 model=self._model_edit.text().strip() or self._config.model,
+                reasoning_effort=reasoning_effort,
             )
 
             # 连接信号

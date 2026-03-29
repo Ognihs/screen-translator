@@ -11,6 +11,7 @@ def translate_image(
     api_key: str,
     base_url: str,
     model: str,
+    reasoning_effort: str | None = None,
 ) -> str:
     """将截图发送给多模态 API 进行翻译。
 
@@ -21,6 +22,7 @@ def translate_image(
         api_key: API 密钥
         base_url: API 基础 URL
         model: 模型名称
+        reasoning_effort: 推理深度（none/low/medium/high），None 表示使用模型默认行为
 
     Returns:
         翻译结果文本，出错时返回错误信息字符串
@@ -32,9 +34,9 @@ def translate_image(
 
         prompt = f"请将图片中的{source_lang}文本翻译为{target_lang}，仅输出翻译结果，不要添加解释"
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        kwargs = {
+            "model": model,
+            "messages": [
                 {
                     "role": "user",
                     "content": [
@@ -48,8 +50,12 @@ def translate_image(
                     ],
                 }
             ],
-            timeout=30.0,
-        )
+            "timeout": 30.0,
+        }
+        if reasoning_effort is not None:
+            kwargs["reasoning_effort"] = reasoning_effort
+
+        response = client.chat.completions.create(**kwargs)
 
         content = response.choices[0].message.content
         if not content or not content.strip():
