@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from openai import OpenAI
+
 from config import Config
 from capture import capture_region, convert_to_jpeg
 from translator import translate_image
@@ -45,16 +47,15 @@ class TranslationWorker(QThread):
     translation_failed = Signal(str)
 
     def __init__(self, image_data: bytes, source_lang: str, target_lang: str,
-                 api_key: str, base_url: str, model: str,
-                 reasoning_effort: str | None = None):
+                 model: str, reasoning_effort: str | None = None,
+                 client: OpenAI | None = None):
         super().__init__()
         self._image_data = image_data
         self._source_lang = source_lang
         self._target_lang = target_lang
-        self._api_key = api_key
-        self._base_url = base_url
         self._model = model
         self._reasoning_effort = reasoning_effort
+        self._client = client
         self._cancelled = False  # 取消标志
 
     def cancel(self):
@@ -68,19 +69,20 @@ class TranslationWorker(QThread):
                 image_data=self._image_data,
                 source_lang=self._source_lang,
                 target_lang=self._target_lang,
-                api_key=self._api_key,
-                base_url=self._base_url,
+                api_key="",
+                base_url="",
                 model=self._model,
                 reasoning_effort=self._reasoning_effort,
+                client=self._client,
             )
             # 如果已取消，不发送结果
             if self._cancelled:
                 return
-            # 通过信号发送结果
-            if result.startswith("错误："):
-                self.translation_failed.emit(result)
+            # 通过结构化结果判断成功/失败
+            if result.is_error:
+                self.translation_failed.emit(result.text)
             else:
-                self.translation_completed.emit(result)
+                self.translation_completed.emit(result.text)
         except Exception as e:
             # 如果已取消，不发送错误信息
             if not self._cancelled:
@@ -97,6 +99,8 @@ class ControlWindow(QWidget):
         self._selection = None  # (x, y, width, height)
         self._is_translating = False  # 防止翻译重叠
         self._translation_worker = None  # 后台翻译线程
+        self._api_client: OpenAI | None = None  # 复用的 API 客户端
+        self._api_client_url: str = ""  # 上次创建客户端时的 base_url
 
         # 子窗口
         self._border_window = BorderWindow()
@@ -400,15 +404,22 @@ class ControlWindow(QWidget):
             reasoning_index = self._reasoning_combo.currentIndex()
             reasoning_effort = self._reasoning_items[reasoning_index][1]
 
+            # 获取或创建复用的 API 客户端
+            base_url = self._api_url_edit.text().strip() or self._config.base_url
+            if self._api_client is None or self._api_client_url != base_url:
+                self._api_client = OpenAI(
+                    api_key=self._config.api_key, base_url=base_url
+                )
+                self._api_client_url = base_url
+
             # 创建后台翻译线程
             self._translation_worker = TranslationWorker(
                 image_data=image_data,
                 source_lang=source_lang,
                 target_lang=target_lang,
-                api_key=self._config.api_key,
-                base_url=self._api_url_edit.text().strip() or self._config.base_url,
                 model=self._model_edit.text().strip() or self._config.model,
                 reasoning_effort=reasoning_effort,
+                client=self._api_client,
             )
 
             # 连接信号
