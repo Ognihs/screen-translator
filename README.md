@@ -5,7 +5,7 @@
 ## 功能特性
 
 - 🖱️ **鼠标框选** — 全屏透明遮罩，拖拽选取屏幕任意区域
-- 🔄 **定时翻译** — 可配置截图间隔（1-300 秒），自动循环截图翻译
+- 🔄 **定时翻译** — 可配置截图间隔（0.5-300 秒，步进 0.5 秒），自动循环截图翻译
 - 🌐 **多语言支持** — 支持中文、日语、英语互译
 - 🔌 **OpenAI 兼容** — 支持任何 OpenAI 兼容接口（DeepSeek、GLM、Ollama 等）
 - 🖼️ **JPEG 压缩传输** — 截图自动转换为 JPEG 格式，可配置压缩质量（1-95），减少 API 传输数据量
@@ -61,7 +61,7 @@ cp .env.example .env
 API_KEY=your-api-key-here
 BASE_URL=https://api.openai.com/v1
 MODEL=gpt-4o
-DEFAULT_INTERVAL=10
+DEFAULT_INTERVAL=10.0
 JPEG_QUALITY=75
 REASONING_EFFORT=
 ```
@@ -71,7 +71,7 @@ REASONING_EFFORT=
 | `API_KEY` | 多模态 API 的密钥 | 无 |
 | `BASE_URL` | API 基础地址 | `https://api.openai.com/v1` |
 | `MODEL` | 使用的模型名称 | `gpt-4o` |
-| `DEFAULT_INTERVAL` | 默认截图间隔（秒） | `10` |
+| `DEFAULT_INTERVAL` | 默认截图间隔（秒） | `10.0` |
 | `JPEG_QUALITY` | JPEG 压缩质量（1-95） | `75` |
 | `REASONING_EFFORT` | 推理深度（none/low/medium/high） | 无（使用模型默认） |
 
@@ -102,7 +102,7 @@ uv run python main.py
 │ 源语言: [日语 ▼]           │
 │ 目标语言: [中文 ▼]         │
 │                             │
-│ 截图间隔: [10] 秒           │
+│ 截图间隔: [1.0] 秒           │
 │                             │
 │ API地址: [________________] │
 │ 模型:   [________________]  │

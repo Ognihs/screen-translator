@@ -13,7 +13,10 @@ class Config:
         self.base_url: str = os.getenv("BASE_URL", "") or "https://api.openai.com/v1"
         self.model: str = os.getenv("MODEL", "") or "gpt-4o"
         interval_str = os.getenv("DEFAULT_INTERVAL", "") or "10"
-        self.default_interval: int = int(interval_str)
+        try:
+            self.default_interval: float = max(0.5, min(300.0, float(interval_str)))
+        except ValueError:
+            self.default_interval: float = 10.0
 
         jpeg_quality_str = os.getenv("JPEG_QUALITY", "") or "75"
         self.jpeg_quality: int = max(1, min(95, int(jpeg_quality_str)))

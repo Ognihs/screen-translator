@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QComboBox,
-    QSpinBox,
+    QDoubleSpinBox,
     QLineEdit,
     QPushButton,
     QMessageBox,
@@ -139,11 +139,14 @@ class ControlWindow(QWidget):
         # 截图间隔
         interval_layout = QHBoxLayout()
         interval_layout.addWidget(QLabel("截图间隔:"))
-        self._interval_spin = QSpinBox()
+        self._interval_spin = QDoubleSpinBox()
         self._interval_spin.setSuffix(" 秒")
-        self._interval_spin.setMinimum(1)
-        self._interval_spin.setMaximum(300)
+        self._interval_spin.setDecimals(1)
+        self._interval_spin.setSingleStep(0.5)
+        self._interval_spin.setMinimum(0.5)
+        self._interval_spin.setMaximum(300.0)
         self._interval_spin.setValue(self._config.default_interval)
+        self._interval_spin.lineEdit().setReadOnly(True)
         interval_layout.addWidget(self._interval_spin)
         interval_layout.addStretch()
         layout.addLayout(interval_layout)
@@ -314,7 +317,7 @@ class ControlWindow(QWidget):
 
     def _start_timer(self):
         """启动定时器"""
-        interval_ms = self._interval_spin.value() * 1000
+        interval_ms = int(self._interval_spin.value() * 1000)
         self._timer.start(interval_ms)
 
     def _pause_translation(self):
