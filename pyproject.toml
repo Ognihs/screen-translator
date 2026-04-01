@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "mss>=10.1.0",
+    "numpy>=2.4.4",
     "openai>=2.30.0",
     "pillow>=12.1.1",
     "pyside6>=6.11.0",

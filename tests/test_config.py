@@ -48,15 +48,23 @@ def test_jpeg_quality_default():
 
 def test_jpeg_quality_custom():
     """测试 jpeg_quality 从环境变量读取"""
-    with patch.dict(os.environ, {"JPEG_QUALITY": "50"}, clear=False):
+    with patch.dict(os.environ, {"JPEG_QUALITY": "90"}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.jpeg_quality == 50
+        assert cfg.jpeg_quality == 90
 
 
-def test_jpeg_quality_clamped():
-    """测试 jpeg_quality 被正确 clamp 到 1-95 范围"""
-    with patch.dict(os.environ, {"JPEG_QUALITY": "100"}, clear=False):
+def test_jpeg_quality_invalid_fallback():
+    """测试 jpeg_quality 无效输入回退到默认值 75"""
+    with patch.dict(os.environ, {"JPEG_QUALITY": "not_a_number"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.jpeg_quality == 75
+
+
+def test_jpeg_quality_clamped_to_valid_range():
+    """测试 jpeg_quality 限制在 1-95 范围内"""
+    with patch.dict(os.environ, {"JPEG_QUALITY": "200"}, clear=False):
         from config import Config
         cfg = Config()
         assert cfg.jpeg_quality == 95
@@ -66,66 +74,127 @@ def test_jpeg_quality_clamped():
         cfg = Config()
         assert cfg.jpeg_quality == 1
 
-    with patch.dict(os.environ, {"JPEG_QUALITY": "-5"}, clear=False):
+
+def test_reasoning_effort_default():
+    """测试 reasoning_effort 默认值为 None"""
+    with patch.dict(os.environ, {"REASONING_EFFORT": ""}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.jpeg_quality == 1
+        assert cfg.reasoning_effort is None
 
 
-def test_interval_float_value():
-    """测试 default_interval 支持小数"""
-    with patch.dict(os.environ, {"DEFAULT_INTERVAL": "2.5"}, clear=False):
+def test_reasoning_effort_custom():
+    """测试 reasoning_effort 从环境变量读取"""
+    with patch.dict(os.environ, {"REASONING_EFFORT": "high"}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.default_interval == 2.5
-
-
-def test_interval_boundary():
-    """测试 default_interval 边界值"""
-    # 最小值
-    with patch.dict(os.environ, {"DEFAULT_INTERVAL": "0.5"}, clear=False):
-        from config import Config
-        cfg = Config()
-        assert cfg.default_interval == 0.5
-
-    # 最大值
-    with patch.dict(os.environ, {"DEFAULT_INTERVAL": "300.0"}, clear=False):
-        from config import Config
-        cfg = Config()
-        assert cfg.default_interval == 300.0
-
-
-def test_interval_clamped():
-    """测试 default_interval 被正确 clamp 到 0.5-300 范围"""
-    # 小于最小值 clamp 到 0.5
-    with patch.dict(os.environ, {"DEFAULT_INTERVAL": "0.1"}, clear=False):
-        from config import Config
-        cfg = Config()
-        assert cfg.default_interval == 0.5
-
-    # 大于最大值 clamp 到 300
-    with patch.dict(os.environ, {"DEFAULT_INTERVAL": "500"}, clear=False):
-        from config import Config
-        cfg = Config()
-        assert cfg.default_interval == 300.0
-
-
-def test_interval_invalid_fallback():
-    """测试 default_interval 非数字输入时回退到默认值"""
-    with patch.dict(os.environ, {"DEFAULT_INTERVAL": "abc"}, clear=False):
-        from config import Config
-        cfg = Config()
-        assert cfg.default_interval == 10.0
+        assert cfg.reasoning_effort == "high"
 
 
 def test_has_api_key():
-    """测试 API Key 是否已配置"""
-    with patch.dict(os.environ, {"API_KEY": "test-key"}, clear=False):
+    """测试 has_api_key 属性"""
+    with patch.dict(os.environ, {"API_KEY": "  "}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.has_api_key is False
+
+    with patch.dict(os.environ, {"API_KEY": "sk-test"}, clear=False):
         from config import Config
         cfg = Config()
         assert cfg.has_api_key is True
 
-    with patch.dict(os.environ, {"API_KEY": ""}, clear=False):
+
+def test_stability_poll_interval_default():
+    """测试 stability_poll_interval 默认值为 200"""
+    with patch.dict(os.environ, {"STABILITY_POLL_INTERVAL": ""}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.has_api_key is False
+        assert cfg.stability_poll_interval == 200
+
+
+def test_stability_poll_interval_custom():
+    """测试 stability_poll_interval 从环境变量读取"""
+    with patch.dict(os.environ, {"STABILITY_POLL_INTERVAL": "500"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_poll_interval == 500
+
+
+def test_stability_poll_interval_invalid_fallback():
+    """测试 stability_poll_interval 非数字输入回退到默认值 200"""
+    with patch.dict(os.environ, {"STABILITY_POLL_INTERVAL": "not_a_number"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_poll_interval == 200
+
+
+def test_stability_window_size_default():
+    """测试 stability_window_size 默认值为 5"""
+    with patch.dict(os.environ, {"STABILITY_WINDOW_SIZE": ""}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_window_size == 5
+
+
+def test_stability_window_size_custom():
+    """测试 stability_window_size 从环境变量读取"""
+    with patch.dict(os.environ, {"STABILITY_WINDOW_SIZE": "10"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_window_size == 10
+
+
+def test_stability_window_size_invalid_fallback():
+    """测试 stability_window_size 非数字输入回退到默认值 5"""
+    with patch.dict(os.environ, {"STABILITY_WINDOW_SIZE": "not_a_number"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_window_size == 5
+
+
+def test_stability_mse_threshold_default():
+    """测试 stability_mse_threshold 默认值为 50.0"""
+    with patch.dict(os.environ, {"STABILITY_MSE_THRESHOLD": ""}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_mse_threshold == 50.0
+
+
+def test_stability_mse_threshold_custom():
+    """测试 stability_mse_threshold 从环境变量读取"""
+    with patch.dict(os.environ, {"STABILITY_MSE_THRESHOLD": "100.5"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_mse_threshold == 100.5
+
+
+def test_stability_mse_threshold_invalid_fallback():
+    """测试 stability_mse_threshold 非数字输入回退到默认值 50.0"""
+    with patch.dict(os.environ, {"STABILITY_MSE_THRESHOLD": "not_a_number"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_mse_threshold == 50.0
+
+
+def test_stability_change_threshold_default():
+    """测试 stability_change_threshold 默认值为 1.0"""
+    with patch.dict(os.environ, {"STABILITY_CHANGE_THRESHOLD": ""}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_change_threshold == 1.0
+
+
+def test_stability_change_threshold_custom():
+    """测试 stability_change_threshold 从环境变量读取"""
+    with patch.dict(os.environ, {"STABILITY_CHANGE_THRESHOLD": "2.5"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_change_threshold == 2.5
+
+
+def test_stability_change_threshold_invalid_fallback():
+    """测试 stability_change_threshold 非数字输入回退到默认值 1.0"""
+    with patch.dict(os.environ, {"STABILITY_CHANGE_THRESHOLD": "not_a_number"}, clear=False):
+        from config import Config
+        cfg = Config()
+        assert cfg.stability_change_threshold == 1.0

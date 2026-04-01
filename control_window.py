@@ -1,6 +1,7 @@
 # control_window.py
 """主控制面板 — 应用的核心协调者，集成所有模块"""
 
+import time
 from enum import StrEnum
 
 from PySide6.QtCore import QTimer, QThread, Signal, QPoint
@@ -25,6 +26,7 @@ from translator import translate_image
 from selector import SelectionOverlay
 from border_window import BorderWindow
 from result_window import ResultWindow
+from stability import StabilityChecker
 
 # 支持的语言列表
 SUPPORTED_LANGUAGES = ["中文", "日语", "英语"]
@@ -107,9 +109,22 @@ class ControlWindow(QWidget):
         self._result_window = ResultWindow()
         self._selection_overlay = None
 
-        # 定时器
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._on_timer_tick)
+        # 稳定性轮询定时器
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._on_poll_tick)
+
+        # 稳定性检测器
+        self._stability_checker = StabilityChecker(
+            window_size=self._config.stability_window_size,
+            mse_threshold=self._config.stability_mse_threshold,
+            change_threshold=self._config.stability_change_threshold,
+        )
+
+        # 上次翻译完成时间（用于间隔约束）
+        self._last_translation_time: float = 0.0
+
+        # 上次截图数据（用于内容变化检测）
+        self._last_screenshot_data: bytes | None = None
 
         self._init_ui()
         self._update_button_states()
@@ -309,10 +324,11 @@ class ControlWindow(QWidget):
         # 统一的启动/恢复逻辑
         self._state = State.RUNNING
         self._start_timer()
-        self._result_window.set_text("初始化中，请稍候...")
+        self._stability_checker.reset()
+        self._last_translation_time = 0.0
+        self._result_window.set_text("等待画面稳定...")
         self._set_status("运行中")
         self._update_button_states()
-        self._execute_translation()
 
     def _on_pause(self):
         """暂停按钮点击"""
@@ -320,13 +336,12 @@ class ControlWindow(QWidget):
             self._pause_translation()
 
     def _start_timer(self):
-        """启动定时器"""
-        interval_ms = int(self._interval_spin.value() * 1000)
-        self._timer.start(interval_ms)
+        """启动稳定性轮询定时器"""
+        self._poll_timer.start(self._config.stability_poll_interval)
 
     def _pause_translation(self):
         """暂停翻译"""
-        self._timer.stop()
+        self._poll_timer.stop()
         self._cancel_current_worker()
         self._state = State.PAUSED
         self._set_status("已暂停")
@@ -334,7 +349,7 @@ class ControlWindow(QWidget):
 
     def _on_stop(self):
         """停止按钮点击"""
-        self._timer.stop()
+        self._poll_timer.stop()
         self._cancel_current_worker()
         self._selection = None
         self._border_window.clear_region()
@@ -355,87 +370,103 @@ class ControlWindow(QWidget):
                 pass  # 信号已断开或对象已销毁
             self._is_translating = False
 
-    def _on_timer_tick(self):
-        """定时器触发"""
+    def _on_poll_tick(self):
+        """稳定性轮询定时器触发"""
         if self._state != State.RUNNING:
             return
-        
+
         # 如果上一次翻译还在进行，跳过本次
         if self._is_translating:
             return
 
-        self._execute_translation()
-
-    def _execute_translation(self):
-        """执行截图和翻译"""
         if self._selection is None:
             return
 
-        self._is_translating = True
-        self._set_status(State.TRANSLATING)
-
         x, y, width, height = self._selection
 
-        # 获取屏幕的 devicePixelRatio，将逻辑像素转换为物理像素
-        # Qt 返回逻辑像素坐标，而 mss 需要物理像素坐标
+        # 获取屏幕 DPR，将逻辑像素转换为物理像素
         dpr = 1.0
-        # 使用 screenAt 获取选区所在屏幕，支持多显示器不同 DPR 的场景
         screen = QGuiApplication.screenAt(QPoint(x, y))
         if screen:
             dpr = screen.devicePixelRatio()
 
-        # 转换为物理像素坐标（使用 round 避免 DPR 为分数值时差 1 像素）
         physical_x = round(x * dpr)
         physical_y = round(y * dpr)
         physical_width = round(width * dpr)
         physical_height = round(height * dpr)
 
         try:
-            # 截图（在主线程执行，很快）
-            # 使用物理像素坐标
-            image_data = capture_region(physical_x, physical_y, physical_width, physical_height)
-            image_data = convert_to_jpeg(image_data, self._config.jpeg_quality)
+            screenshot_data = capture_region(physical_x, physical_y, physical_width, physical_height)
+            is_stable = self._stability_checker.check(screenshot_data)
+        except Exception:
+            return  # 截图或解码失败，跳过本次轮询
 
-            # 获取语言参数
-            source_lang = self._source_lang_combo.currentText()
-            target_lang = self._target_lang_combo.currentText()
+        if not is_stable:
+            return
 
-            # 获取推理深度
-            reasoning_index = self._reasoning_combo.currentIndex()
-            reasoning_effort = self._reasoning_items[reasoning_index][1]
+        # 保存截图数据用于内容变化检测和后续更新参考画面
+        self._last_screenshot_data = screenshot_data
 
-            # 获取或创建复用的 API 客户端
-            base_url = self._api_url_edit.text().strip() or self._config.base_url
-            if self._api_client is None or self._api_client_url != base_url:
-                self._api_client = OpenAI(
-                    api_key=self._config.api_key, base_url=base_url
-                )
-                self._api_client_url = base_url
+        # 内容变化检测
+        if not self._stability_checker.content_changed(screenshot_data):
+            return
 
-            # 创建后台翻译线程
-            self._translation_worker = TranslationWorker(
-                image_data=image_data,
-                source_lang=source_lang,
-                target_lang=target_lang,
-                model=self._model_edit.text().strip() or self._config.model,
-                reasoning_effort=reasoning_effort,
-                client=self._api_client,
+        # 检查翻译间隔约束
+        now = time.monotonic()
+        min_interval = self._interval_spin.value()
+        if now - self._last_translation_time < min_interval:
+            return
+
+        # 画面稳定且满足间隔约束，执行翻译
+        image_data = convert_to_jpeg(screenshot_data, self._config.jpeg_quality)
+        self._do_translate(image_data)
+
+    def _do_translate(self, image_data: bytes):
+        """执行翻译（由稳定性检测触发）"""
+        self._is_translating = True
+        self._set_status(State.TRANSLATING)
+
+        # 获取语言参数
+        source_lang = self._source_lang_combo.currentText()
+        target_lang = self._target_lang_combo.currentText()
+
+        # 获取推理深度
+        reasoning_index = self._reasoning_combo.currentIndex()
+        reasoning_effort = self._reasoning_items[reasoning_index][1]
+
+        # 获取或创建复用的 API 客户端
+        base_url = self._api_url_edit.text().strip() or self._config.base_url
+        if self._api_client is None or self._api_client_url != base_url:
+            self._api_client = OpenAI(
+                api_key=self._config.api_key, base_url=base_url
             )
+            self._api_client_url = base_url
 
-            # 连接信号
-            self._translation_worker.translation_completed.connect(self._on_translation_completed)
-            self._translation_worker.translation_failed.connect(self._on_translation_failed)
-            self._translation_worker.finished.connect(self._on_translation_finished)
+        # 创建后台翻译线程
+        self._translation_worker = TranslationWorker(
+            image_data=image_data,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            model=self._model_edit.text().strip() or self._config.model,
+            reasoning_effort=reasoning_effort,
+            client=self._api_client,
+        )
 
-            # 启动后台线程
-            self._translation_worker.start()
+        # 连接信号
+        self._translation_worker.translation_completed.connect(self._on_translation_completed)
+        self._translation_worker.translation_failed.connect(self._on_translation_failed)
+        self._translation_worker.finished.connect(self._on_translation_finished)
 
-        except Exception as e:
-            self._set_status(f"错误：{type(e).__name__} — {e}")
-            self._is_translating = False
+        # 启动后台线程
+        self._translation_worker.start()
 
     def _on_translation_completed(self, result: str):
         """翻译完成回调（在主线程执行）"""
+        self._last_translation_time = time.monotonic()
+        self._stability_checker.reset()
+        # 更新参考画面
+        if self._last_screenshot_data is not None:
+            self._stability_checker.update_reference(self._last_screenshot_data)
         # 显示结果
         if self._result_window.isHidden():
             self._result_window.show()
@@ -446,6 +477,11 @@ class ControlWindow(QWidget):
 
     def _on_translation_failed(self, error_msg: str):
         """翻译失败回调（在主线程执行）"""
+        self._last_translation_time = time.monotonic()
+        self._stability_checker.reset()
+        # 更新参考画面
+        if self._last_screenshot_data is not None:
+            self._stability_checker.update_reference(self._last_screenshot_data)
         # 仅在运行状态下更新状态，暂停时保持暂停状态
         if self._state == State.RUNNING:
             self._set_status(error_msg)
@@ -463,7 +499,7 @@ class ControlWindow(QWidget):
 
     def closeEvent(self, event: QCloseEvent):
         """窗口关闭事件"""
-        self._timer.stop()
+        self._poll_timer.stop()
         self._cancel_current_worker()
         self._border_window.close()
         if self._result_window is not None:

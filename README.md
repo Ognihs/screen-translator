@@ -12,6 +12,8 @@
 - 🧠 **推理深度控制** — 支持 reasoning_effort 参数，适配 OpenAI o1/o3 系列模型
 - 🖥️ **多显示器支持** — 自动处理 DPR 差异，支持不同缩放比例的多显示器环境
 - 🔄 **后台翻译线程** — 翻译在后台线程执行，不阻塞 UI 操作
+- 🛡️ **稳定性检测** — 通过 MSE 滑动窗口判断画面稳定，避免稳定画面时浪费 API 调用
+- 📊 **内容变化检测** — 比较当前帧与上次翻译画面的 RMSE%，只有显著变化才触发翻译
 - 📌 **置顶结果窗口** — 翻译结果始终可见，支持拖动和调整大小
 - 🎯 **选区边框** — 绿色边框标记当前选区，鼠标穿透不影响操作
 - ⏸️ **暂停/继续** — 随时暂停和恢复翻译循环
@@ -23,6 +25,7 @@
 - **mss** — 屏幕截图
 - **openai** — 多模态 API 客户端
 - **Pillow** — 图像处理（JPEG 压缩转换）
+- **numpy** — 图像稳定性检测（MSE 计算）
 - **python-dotenv** — 环境变量管理
 
 ## 安装
@@ -64,6 +67,10 @@ MODEL=gpt-4o
 DEFAULT_INTERVAL=10.0
 JPEG_QUALITY=75
 REASONING_EFFORT=
+STABILITY_POLL_INTERVAL=200
+STABILITY_WINDOW_SIZE=5
+STABILITY_MSE_THRESHOLD=50.0
+STABILITY_CHANGE_THRESHOLD=1.0
 ```
 
 | 配置项 | 说明 | 默认值 |
@@ -74,6 +81,10 @@ REASONING_EFFORT=
 | `DEFAULT_INTERVAL` | 默认截图间隔（秒） | `10.0` |
 | `JPEG_QUALITY` | JPEG 压缩质量（1-95） | `75` |
 | `REASONING_EFFORT` | 推理深度（none/low/medium/high） | 无（使用模型默认） |
+| `STABILITY_POLL_INTERVAL` | 稳定性检测轮询间隔（毫秒） | `200` |
+| `STABILITY_WINDOW_SIZE` | 稳定性滑动窗口大小（连续次数） | `5` |
+| `STABILITY_MSE_THRESHOLD` | 稳定性 MSE 阈值 | `50.0` |
+| `STABILITY_CHANGE_THRESHOLD` | 内容变化阈值（RMSE%） | `1.0` |
 
 > **注意**：`API_KEY` 为必填项，其他配置项均有默认值。API 地址和模型也可在控制面板中实时修改。
 
@@ -124,6 +135,7 @@ screen-translator/
 ├── selector.py          # 全屏透明遮罩，鼠标拖拽选区
 ├── capture.py           # 截图引擎（mss 截取指定区域）
 ├── translator.py        # OpenAI 兼容 API 翻译客户端
+├── stability.py         # 截图稳定性与内容变化检测
 ├── border_window.py     # 选区边框窗口（置顶、鼠标穿透）
 ├── result_window.py     # 翻译结果展示窗口（置顶、可拖动）
 ├── control_window.py    # 主控制面板（协调所有模块）
@@ -136,11 +148,14 @@ screen-translator/
 │   └── specs/           # 设计文档
 │       ├── 2026-03-29-screen-translator-design.md      # 主设计文档
 │       ├── 2026-03-29-jpeg-compression-design.md       # JPEG 压缩设计
-│       └── 2026-03-29-reasoning-effort-design.md       # 推理深度设计
+│       ├── 2026-03-29-reasoning-effort-design.md       # 推理深度设计
+│       ├── 2026-03-31-stability-check-design.md        # 稳定性检测设计
+│       └── 2026-04-01-content-change-detection-design.md # 内容变化检测设计
 └── tests/               # 单元测试
     ├── __init__.py
     ├── test_config.py   # 配置模块测试
     ├── test_capture.py  # 截图引擎测试
+    ├── test_stability.py # 稳定性检测测试
     └── test_translator.py # 翻译客户端测试
 ```
 
@@ -177,6 +192,8 @@ main.py → ControlWindow（主协调者）
 - [`docs/specs/2026-03-29-screen-translator-design.md`](docs/specs/2026-03-29-screen-translator-design.md) — 主设计文档
 - [`docs/specs/2026-03-29-jpeg-compression-design.md`](docs/specs/2026-03-29-jpeg-compression-design.md) — JPEG 压缩设计
 - [`docs/specs/2026-03-29-reasoning-effort-design.md`](docs/specs/2026-03-29-reasoning-effort-design.md) — 推理深度设计
+- [`docs/specs/2026-03-31-stability-check-design.md`](docs/specs/2026-03-31-stability-check-design.md) — 稳定性检测设计
+- [`docs/specs/2026-04-01-content-change-detection-design.md`](docs/specs/2026-04-01-content-change-detection-design.md) — 内容变化检测设计
 
 ## 开发
 
