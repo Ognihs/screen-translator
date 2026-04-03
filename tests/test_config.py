@@ -152,28 +152,28 @@ def test_stability_window_size_invalid_fallback():
         assert cfg.stability_window_size == 5
 
 
-def test_stability_mse_threshold_default():
-    """测试 stability_mse_threshold 默认值为 50.0"""
-    with patch.dict(os.environ, {"STABILITY_MSE_THRESHOLD": ""}, clear=False):
+def test_stability_threshold_default():
+    """测试 stability_threshold 默认值为 3.0"""
+    with patch.dict(os.environ, {"STABILITY_THRESHOLD": ""}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.stability_mse_threshold == 50.0
+        assert cfg.stability_threshold == 3.0
 
 
-def test_stability_mse_threshold_custom():
-    """测试 stability_mse_threshold 从环境变量读取"""
-    with patch.dict(os.environ, {"STABILITY_MSE_THRESHOLD": "100.5"}, clear=False):
+def test_stability_threshold_custom():
+    """测试 stability_threshold 从环境变量读取"""
+    with patch.dict(os.environ, {"STABILITY_THRESHOLD": "5.0"}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.stability_mse_threshold == 100.5
+        assert cfg.stability_threshold == 5.0
 
 
-def test_stability_mse_threshold_invalid_fallback():
-    """测试 stability_mse_threshold 非数字输入回退到默认值 50.0"""
-    with patch.dict(os.environ, {"STABILITY_MSE_THRESHOLD": "not_a_number"}, clear=False):
+def test_stability_threshold_invalid_fallback():
+    """测试 stability_threshold 非数字输入回退到默认值 3.0"""
+    with patch.dict(os.environ, {"STABILITY_THRESHOLD": "not_a_number"}, clear=False):
         from config import Config
         cfg = Config()
-        assert cfg.stability_mse_threshold == 50.0
+        assert cfg.stability_threshold == 3.0
 
 
 def test_stability_change_threshold_default():

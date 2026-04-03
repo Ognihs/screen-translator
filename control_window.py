@@ -116,7 +116,7 @@ class ControlWindow(QWidget):
         # 稳定性检测器
         self._stability_checker = StabilityChecker(
             window_size=self._config.stability_window_size,
-            mse_threshold=self._config.stability_mse_threshold,
+            threshold=self._config.stability_threshold,
             change_threshold=self._config.stability_change_threshold,
         )
 
@@ -354,6 +354,7 @@ class ControlWindow(QWidget):
         self._selection = None
         self._border_window.clear_region()
         self._result_window.clear_text()
+        self._stability_checker.reset_reference()
         self._set_state(State.READY)
 
     def _cancel_current_worker(self):

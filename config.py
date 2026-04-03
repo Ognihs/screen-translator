@@ -38,11 +38,11 @@ class Config:
         except ValueError:
             self.stability_window_size: int = 5
 
-        mse_threshold_str = os.getenv("STABILITY_MSE_THRESHOLD", "") or "50.0"
+        threshold_str = os.getenv("STABILITY_THRESHOLD", "") or "3.0"
         try:
-            self.stability_mse_threshold: float = max(0.0, min(10000.0, float(mse_threshold_str)))
+            self.stability_threshold: float = max(0.0, min(100.0, float(threshold_str)))
         except ValueError:
-            self.stability_mse_threshold: float = 50.0
+            self.stability_threshold: float = 3.0
 
         change_threshold_str = os.getenv("STABILITY_CHANGE_THRESHOLD", "") or "1.0"
         try:

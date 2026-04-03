@@ -16,25 +16,29 @@ class StabilityChecker:
 
     Attributes:
         _window_size: 滑动窗口大小
-        _mse_threshold: MSE 阈值
+        _mse_threshold: 由 RMSE% 百分比转换而来的 MSE 阈值
         _change_threshold: 内容变化阈值（RMSE%）
         _mse_history: 滑动窗口，存储最近的 MSE 值
         _last_image: 上一次截图的 numpy 数组
         _reference_image: 参考画面（用于内容变化检测）
     """
 
-    def __init__(self, window_size: int, mse_threshold: float, change_threshold: float = 0.0):
+    def __init__(self, window_size: int, threshold: float, change_threshold: float = 0.0):
         self._window_size = window_size
-        self._mse_threshold = mse_threshold
+        self._mse_threshold = (threshold / 100.0 * 255.0) ** 2
         self._change_threshold = change_threshold
         self._mse_history: collections.deque[float] = collections.deque(maxlen=window_size)
         self._last_image: np.ndarray | None = None
         self._reference_image: np.ndarray | None = None
 
     def reset(self) -> None:
-        """清空滑动窗口和历史图片缓存（不清除参考画面）"""
+        """清空滑动窗口和历史图片缓存"""
         self._mse_history.clear()
         self._last_image = None
+
+    def reset_reference(self) -> None:
+        """清除参考画面，下次 content_changed 调用将返回 True"""
+        self._reference_image = None
 
     def content_changed(self, image_data: bytes) -> bool:
         """检查图片内容是否发生变化。
@@ -52,6 +56,9 @@ class StabilityChecker:
             return True
 
         image = self._decode_image(image_data)
+        # 形状不匹配（选区变化），视为内容已变化
+        if self._reference_image.shape != image.shape:
+            return True
         mse = self._compute_mse(self._reference_image, image)
         rmse_percent = (mse ** 0.5) / 255.0 * 100.0
         return rmse_percent > self._change_threshold
