@@ -7,9 +7,9 @@
 - 🖱️ **鼠标框选** — 全屏透明遮罩，拖拽选取屏幕任意区域
 - 🔄 **定时翻译** — 可配置截图间隔（0.5-300 秒，步进 0.5 秒），自动循环截图翻译
 - 🌐 **多语言支持** — 支持中文、日语、英语互译
-- 🔌 **OpenAI 兼容** — 支持任何 OpenAI 兼容接口（DeepSeek、GLM、Ollama 等）
+- 🔌 **OpenAI 兼容** — 支持任何 OpenAI 兼容接口（Kimi、LMStudio、Ollama 等）
 - 🖼️ **JPEG 压缩传输** — 截图自动转换为 JPEG 格式，可配置压缩质量（1-95），减少 API 传输数据量
-- 🧠 **推理深度控制** — 支持 reasoning_effort 参数，适配 OpenAI o1/o3 系列模型
+- 🧠 **推理深度控制** — 支持 reasoning_effort 参数，适配支援思考的模型
 - 🖥️ **多显示器支持** — 自动处理 DPR 差异，支持不同缩放比例的多显示器环境
 - 🔄 **后台翻译线程** — 翻译在后台线程执行，不阻塞 UI 操作
 - 🛡️ **稳定性检测** — 通过 MSE 滑动窗口判断画面稳定，避免稳定画面时浪费 API 调用
@@ -40,7 +40,7 @@
 1. 克隆仓库：
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Ognihs/screen-translator.git
 cd screen-translator
 ```
 
@@ -58,7 +58,7 @@ uv sync
 cp .env.example .env
 ```
 
-2. 编辑 `.env` 文件，填入你的 API 配置：
+2. 编辑 `.env` 文件，填入 API 配置：
 
 ```ini
 API_KEY=your-api-key-here
@@ -113,7 +113,7 @@ uv run python main.py
 │ 源语言: [日语 ▼]           │
 │ 目标语言: [中文 ▼]         │
 │                             │
-│ 截图间隔: [1.0] 秒           │
+│ 截图间隔: [1.0] 秒          │
 │                             │
 │ API地址: [________________] │
 │ 模型:   [________________]  │
@@ -146,11 +146,7 @@ screen-translator/
 ├── uv.lock              # 依赖锁文件
 ├── docs/
 │   └── specs/           # 设计文档
-│       ├── 2026-03-29-screen-translator-design.md      # 主设计文档
-│       ├── 2026-03-29-jpeg-compression-design.md       # JPEG 压缩设计
-│       ├── 2026-03-29-reasoning-effort-design.md       # 推理深度设计
-│       ├── 2026-03-31-stability-check-design.md        # 稳定性检测设计
-│       └── 2026-04-01-content-change-detection-design.md # 内容变化检测设计
+│       └── 2026-03-29-screen-translator-design.md      # 主设计文档
 └── tests/               # 单元测试
     ├── __init__.py
     ├── test_config.py   # 配置模块测试
@@ -184,16 +180,6 @@ main.py → ControlWindow（主协调者）
                                                             ↓
                                                 result_window.py 显示翻译结果
 ```
-
-## 设计文档
-
-项目包含以下设计文档，详细记录了各功能的设计思路和实现方案：
-
-- [`docs/specs/2026-03-29-screen-translator-design.md`](docs/specs/2026-03-29-screen-translator-design.md) — 主设计文档
-- [`docs/specs/2026-03-29-jpeg-compression-design.md`](docs/specs/2026-03-29-jpeg-compression-design.md) — JPEG 压缩设计
-- [`docs/specs/2026-03-29-reasoning-effort-design.md`](docs/specs/2026-03-29-reasoning-effort-design.md) — 推理深度设计
-- [`docs/specs/2026-03-31-stability-check-design.md`](docs/specs/2026-03-31-stability-check-design.md) — 稳定性检测设计
-- [`docs/specs/2026-04-01-content-change-detection-design.md`](docs/specs/2026-04-01-content-change-detection-design.md) — 内容变化检测设计
 
 ## 开发
 
