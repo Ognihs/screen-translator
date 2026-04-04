@@ -1,6 +1,7 @@
 # control_window.py
 """主控制面板 — 应用的核心协调者，集成所有模块"""
 
+import logging
 import time
 from enum import StrEnum
 
@@ -20,9 +21,9 @@ from PySide6.QtWidgets import (
 
 from openai import OpenAI
 
-from config import Config
+from config import Config, MIN_INTERVAL, MAX_INTERVAL
 from capture import capture_region, convert_to_jpeg
-from translator import translate_image
+from translator import translate_image, ReasoningEffort
 from selector import SelectionOverlay
 from border_window import BorderWindow
 from result_window import ResultWindow
@@ -30,6 +31,12 @@ from stability import StabilityChecker
 
 # 支持的语言列表
 SUPPORTED_LANGUAGES = ["中文", "日语", "英语"]
+
+# 常量定义
+MIN_SELECTION_SIZE = 10  # 最小选区大小（像素）
+
+# 模块级日志记录器
+logger = logging.getLogger(__name__)
 
 
 class State(StrEnum):
@@ -49,18 +56,18 @@ class TranslationWorker(QThread):
     translation_failed = Signal(str)
 
     def __init__(self, image_data: bytes, source_lang: str, target_lang: str,
-                 model: str, reasoning_effort: str | None = None,
+                 model: str, reasoning_effort: ReasoningEffort | None = None,
                  client: OpenAI | None = None):
         super().__init__()
         self._image_data = image_data
         self._source_lang = source_lang
         self._target_lang = target_lang
         self._model = model
-        self._reasoning_effort = reasoning_effort
+        self._reasoning_effort: ReasoningEffort | None = reasoning_effort
         self._client = client
         self._cancelled = False  # 取消标志
 
-    def cancel(self):
+    def cancel(self) -> None:
         """请求取消翻译（协作式取消）"""
         self._cancelled = True
 
@@ -162,8 +169,8 @@ class ControlWindow(QWidget):
         self._interval_spin.setSuffix(" 秒")
         self._interval_spin.setDecimals(1)
         self._interval_spin.setSingleStep(0.5)
-        self._interval_spin.setMinimum(0.5)
-        self._interval_spin.setMaximum(300.0)
+        self._interval_spin.setMinimum(MIN_INTERVAL)
+        self._interval_spin.setMaximum(MAX_INTERVAL)
         self._interval_spin.setValue(self._config.default_interval)
         self._interval_spin.lineEdit().setReadOnly(True)
         interval_layout.addWidget(self._interval_spin)
@@ -192,7 +199,7 @@ class ControlWindow(QWidget):
         reasoning_layout = QHBoxLayout()
         reasoning_layout.addWidget(QLabel("推理深度:"))
         self._reasoning_combo = QComboBox()
-        self._reasoning_items = [
+        self._reasoning_items: list[tuple[str, ReasoningEffort | None]] = [
             ("默认", None),
             ("关闭", "none"),
             ("低", "low"),
@@ -238,9 +245,13 @@ class ControlWindow(QWidget):
 
     def _check_api_key(self):
         """检查 API Key 是否配置"""
+        logger.info("检查 API Key 配置")
         if not self._config.has_api_key:
+            logger.warning("API Key 未配置")
             self._set_status("请配置 API Key")
             self._start_btn.setEnabled(False)
+        else:
+            logger.info("API Key 已配置")
 
     def _set_status(self, message: str):
         """更新状态栏"""
@@ -272,11 +283,12 @@ class ControlWindow(QWidget):
 
     def _set_state(self, new_state: State):
         """设置新状态"""
+        logger.info(f"状态转换: {self._state} -> {new_state}")
         self._state = new_state
         self._set_status(new_state)
         self._update_button_states()
 
-    def _on_select_region(self):
+    def _on_select_region(self) -> None:
         """选择区域按钮点击"""
         if self._state != State.READY:
             return
@@ -286,9 +298,11 @@ class ControlWindow(QWidget):
         self._selection_overlay.selection_cancelled.connect(self._on_selection_cancelled)
         self._selection_overlay.show_and_select()
 
-    def _on_selection_made(self, x: int, y: int, width: int, height: int):
+    def _on_selection_made(self, x: int, y: int, width: int, height: int) -> None:
         """选区完成"""
-        if width < 10 or height < 10:
+        logger.info(f"选区完成: ({x}, {y}) {width}x{height}")
+        if width < MIN_SELECTION_SIZE or height < MIN_SELECTION_SIZE:
+            logger.warning(f"选区过小: {width}x{height}")
             QMessageBox.warning(self, "选区过小", "选区过小，请重新选择")
             self._selection = None
             self._border_window.clear_region()
@@ -299,39 +313,42 @@ class ControlWindow(QWidget):
         self._set_status(f"已选择区域: {width}x{height}")
         self._update_button_states()
 
-    def _on_selection_cancelled(self):
+    def _on_selection_cancelled(self) -> None:
         """选区取消"""
         self._selection = None
         self._border_window.clear_region()
         self._set_status("已取消选择")
         self._update_button_states()
 
-    def _on_start(self):
+    def _on_start(self) -> None:
         """开始按钮点击（也用于从暂停恢复）"""
+        logger.info("开始按钮点击")
         if self._state == State.PAUSED:
             # 从暂停恢复，跳过验证
+            logger.info("从暂停状态恢复")
             pass
         elif self._state == State.READY:
             if self._selection is None:
+                logger.warning("未选择区域，无法启动")
                 QMessageBox.warning(self, "未选择区域", "请先选择截图区域")
                 return
             if not self._config.has_api_key:
+                logger.warning("API Key 未配置，无法启动")
                 QMessageBox.warning(self, "API Key 未配置", "请配置 API Key")
                 return
         else:
             return
 
         # 统一的启动/恢复逻辑
-        self._state = State.RUNNING
+        self._set_state(State.RUNNING)
         self._start_timer()
         self._stability_checker.reset()
         self._last_translation_time = 0.0
         self._result_window.set_text("等待画面稳定...")
-        self._set_status("运行中")
-        self._update_button_states()
 
-    def _on_pause(self):
+    def _on_pause(self) -> None:
         """暂停按钮点击"""
+        logger.info("暂停按钮点击")
         if self._state == State.RUNNING:
             self._pause_translation()
 
@@ -343,12 +360,11 @@ class ControlWindow(QWidget):
         """暂停翻译"""
         self._poll_timer.stop()
         self._cancel_current_worker()
-        self._state = State.PAUSED
-        self._set_status("已暂停")
-        self._update_button_states()
+        self._set_state(State.PAUSED)
 
-    def _on_stop(self):
+    def _on_stop(self) -> None:
         """停止按钮点击"""
+        logger.info("停止按钮点击")
         self._poll_timer.stop()
         self._cancel_current_worker()
         self._selection = None
@@ -399,7 +415,9 @@ class ControlWindow(QWidget):
         try:
             screenshot_data = capture_region(physical_x, physical_y, physical_width, physical_height)
             is_stable = self._stability_checker.check(screenshot_data)
-        except Exception:
+        except Exception as e:
+            logger.error(f"截图或稳定性检测失败: {e}", exc_info=True)
+            self._set_status("截图失败，等待重试...")
             return  # 截图或解码失败，跳过本次轮询
 
         if not is_stable:
@@ -424,6 +442,7 @@ class ControlWindow(QWidget):
 
     def _do_translate(self, image_data: bytes):
         """执行翻译（由稳定性检测触发）"""
+        logger.info("翻译开始")
         self._is_translating = True
         self._set_status(State.TRANSLATING)
 
@@ -437,9 +456,17 @@ class ControlWindow(QWidget):
 
         # 获取或创建复用的 API 客户端
         base_url = self._api_url_edit.text().strip() or self._config.base_url
+        api_key = self._config.api_key
+        if not api_key:
+            logger.error("API Key 为空，请检查配置")
+            self._set_status("错误：API Key 未设置")
+            self._is_translating = False
+            return
+
         if self._api_client is None or self._api_client_url != base_url:
+            logger.info(f"创建新的 API 客户端，base_url: {base_url}")
             self._api_client = OpenAI(
-                api_key=self._config.api_key, base_url=base_url
+                api_key=api_key, base_url=base_url
             )
             self._api_client_url = base_url
 
@@ -459,33 +486,33 @@ class ControlWindow(QWidget):
         self._translation_worker.finished.connect(self._on_translation_finished)
 
         # 启动后台线程
+        logger.info(f"启动翻译线程: {source_lang} -> {target_lang}")
         self._translation_worker.start()
 
-    def _on_translation_completed(self, result: str):
-        """翻译完成回调（在主线程执行）"""
+    def _post_translation_cleanup(self, status_msg: str):
+        """翻译后清理（公共方法，供成功和失败回调共用）"""
         self._last_translation_time = time.monotonic()
         self._stability_checker.reset()
         # 更新参考画面
         if self._last_screenshot_data is not None:
             self._stability_checker.update_reference(self._last_screenshot_data)
+        # 仅在运行状态下更新状态，暂停时保持暂停状态
+        if self._state == State.RUNNING:
+            self._set_status(status_msg)
+
+    def _on_translation_completed(self, result: str):
+        """翻译完成回调（在主线程执行）"""
+        logger.info("翻译完成")
+        self._post_translation_cleanup(State.RUNNING)
         # 显示结果
         if self._result_window.isHidden():
             self._result_window.show()
         self._result_window.set_text(result)
-        # 仅在运行状态下更新状态，暂停时保持暂停状态
-        if self._state == State.RUNNING:
-            self._set_status(State.RUNNING)
 
     def _on_translation_failed(self, error_msg: str):
         """翻译失败回调（在主线程执行）"""
-        self._last_translation_time = time.monotonic()
-        self._stability_checker.reset()
-        # 更新参考画面
-        if self._last_screenshot_data is not None:
-            self._stability_checker.update_reference(self._last_screenshot_data)
-        # 仅在运行状态下更新状态，暂停时保持暂停状态
-        if self._state == State.RUNNING:
-            self._set_status(error_msg)
+        logger.error(f"翻译失败: {error_msg}")
+        self._post_translation_cleanup(error_msg)
 
     def _on_translation_finished(self):
         """翻译线程结束回调（在主线程执行）"""

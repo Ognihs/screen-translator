@@ -1,15 +1,22 @@
 """选区边框窗口 — 在选区边缘显示绿色边框"""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QRect
-from PySide6.QtGui import QPainter, QPen, QColor
+from PySide6.QtGui import QPainter, QPen, QColor, QPaintEvent
+
+# 常量定义
+CORNER_RADIUS = 8  # 圆角半径
 
 
 class BorderWindow(QWidget):
     """选区边框窗口，无边框置顶，显示 3px 绿色边框"""
 
-    BORDER_WIDTH = 3
     BORDER_COLOR = QColor(0, 255, 0)  # 绿色
+    BORDER_WIDTH = 3
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -30,7 +37,7 @@ class BorderWindow(QWidget):
         # 初始隐藏
         self.hide()
 
-    def set_region(self, x: int, y: int, width: int, height: int):
+    def set_region(self, x: int, y: int, width: int, height: int) -> None:
         """设置边框位置和大小
 
         Args:
@@ -38,17 +45,22 @@ class BorderWindow(QWidget):
             y: 选区左上角 y 坐标
             width: 选区宽度
             height: 选区高度
+
+        Raises:
+            ValueError: 当 width 或 height 不为正值时
         """
+        if width <= 0 or height <= 0:
+            raise ValueError(f"width and height must be positive, got width={width}, height={height}")
         self._region = QRect(x, y, width, height)
         self.setGeometry(self._region)
         self.show()
 
-    def clear_region(self):
+    def clear_region(self) -> None:
         """清除边框，隐藏窗口"""
         self._region = QRect()
         self.hide()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """绘制绿色边框"""
         if self._region.isNull():
             return
@@ -66,5 +78,5 @@ class BorderWindow(QWidget):
             adjust,
             self._region.width() - self.BORDER_WIDTH,
             self._region.height() - self.BORDER_WIDTH,
-            8, 8  # xRadius, yRadius
+            CORNER_RADIUS, CORNER_RADIUS  # xRadius, yRadius
         )

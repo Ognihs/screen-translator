@@ -3,9 +3,12 @@
 
 import collections
 import io
+import logging
 
 import numpy as np
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 class StabilityChecker:
@@ -24,20 +27,29 @@ class StabilityChecker:
     """
 
     def __init__(self, window_size: int, threshold: float, change_threshold: float = 0.0):
+        if window_size <= 0:
+            raise ValueError(f"window_size 必须大于 0，实际值: {window_size}")
+        if not (0.0 <= threshold <= 100.0):
+            raise ValueError(f"threshold 必须在 0.0-100.0 范围内，实际值: {threshold}")
+        if not (0.0 <= change_threshold <= 100.0):
+            raise ValueError(f"change_threshold 必须在 0.0-100.0 范围内，实际值: {change_threshold}")
         self._window_size = window_size
         self._mse_threshold = (threshold / 100.0 * 255.0) ** 2
         self._change_threshold = change_threshold
         self._mse_history: collections.deque[float] = collections.deque(maxlen=window_size)
         self._last_image: np.ndarray | None = None
         self._reference_image: np.ndarray | None = None
+        logger.debug(f"初始化 StabilityChecker: window_size={window_size}, threshold={threshold}, change_threshold={change_threshold}")
 
     def reset(self) -> None:
         """清空滑动窗口和历史图片缓存"""
+        logger.debug("重置 StabilityChecker")
         self._mse_history.clear()
         self._last_image = None
 
     def reset_reference(self) -> None:
         """清除参考画面，下次 content_changed 调用将返回 True"""
+        logger.debug("清除参考画面")
         self._reference_image = None
 
     def content_changed(self, image_data: bytes) -> bool:
@@ -53,15 +65,19 @@ class StabilityChecker:
             True 表示内容已变化，False 表示内容未变化
         """
         if self._reference_image is None:
+            logger.debug("首次检测内容变化，无参考画面")
             return True
 
         image = self._decode_image(image_data)
         # 形状不匹配（选区变化），视为内容已变化
         if self._reference_image.shape != image.shape:
+            logger.debug(f"选区变化: {self._reference_image.shape} -> {image.shape}")
             return True
         mse = self._compute_mse(self._reference_image, image)
         rmse_percent = (mse ** 0.5) / 255.0 * 100.0
-        return rmse_percent > self._change_threshold
+        changed = rmse_percent > self._change_threshold
+        logger.debug(f"内容变化检测: RMSE%={rmse_percent:.4f}, 阈值={self._change_threshold}, 变化={changed}")
+        return changed
 
     def update_reference(self, image_data: bytes) -> None:
         """更新参考画面
@@ -70,6 +86,7 @@ class StabilityChecker:
             image_data: PNG 格式的截图 bytes
         """
         self._reference_image = self._decode_image(image_data)
+        logger.debug(f"更新参考画面: shape={self._reference_image.shape}")
 
     def check(self, image_data: bytes) -> bool:
         """检查当前截图是否使画面处于稳定状态。
@@ -87,17 +104,22 @@ class StabilityChecker:
         image = self._decode_image(image_data)
 
         if self._last_image is None:
+            logger.debug("首次稳定性检测，无历史画面")
             self._last_image = image
             return False
 
         mse = self._compute_mse(self._last_image, image)
+        rmse_percent = (mse ** 0.5) / 255.0 * 100.0
         self._last_image = image
         self._mse_history.append(mse)
+        logger.debug(f"MSE: {mse:.4f}, RMSE%: {rmse_percent:.4f}, 窗口: {len(self._mse_history)}/{self._window_size}")
 
         if len(self._mse_history) < self._window_size:
             return False
 
-        return all(mse_val <= self._mse_threshold for mse_val in self._mse_history)
+        is_stable = all(mse_val <= self._mse_threshold for mse_val in self._mse_history)
+        logger.info(f"稳定性检测结果: {'稳定' if is_stable else '不稳定'}")
+        return is_stable
 
     @staticmethod
     def _decode_image(image_data: bytes) -> np.ndarray:
@@ -124,5 +146,10 @@ class StabilityChecker:
 
         Returns:
             MSE 值，范围 0.0 ~ 65025.0
+
+        Raises:
+            ValueError: 当两张图片形状不匹配时
         """
+        if a.shape != b.shape:
+            raise ValueError(f"图片形状不匹配: a.shape={a.shape}, b.shape={b.shape}")
         return float(np.mean((a - b) ** 2))

@@ -1,8 +1,18 @@
 """翻译结果窗口 — 置顶无边框窗口，显示翻译文本"""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtWidgets import QWidget, QTextEdit, QSizeGrip, QVBoxLayout, QLabel, QHBoxLayout
 from PySide6.QtCore import Qt, QPoint
-from PySide6.QtGui import QMouseEvent, QResizeEvent
+from PySide6.QtGui import QMouseEvent, QResizeEvent, QCloseEvent
+
+# 常量定义
+DEFAULT_WIDTH = 400  # 默认宽度
+DEFAULT_HEIGHT = 300  # 默认高度
+MIN_WIDTH = 200  # 最小宽度
+MIN_HEIGHT = 150  # 最小高度
 
 
 class ResultWindow(QWidget):
@@ -31,8 +41,8 @@ class ResultWindow(QWidget):
             | Qt.WindowType.Tool
         )
         # 初始窗口大小和最小尺寸
-        self.resize(400, 300)
-        self.setMinimumSize(200, 150)
+        self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
         # 暗色主题背景
         self.setStyleSheet(f"""
             QWidget {{
@@ -156,3 +166,8 @@ class ResultWindow(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_position = None
             event.accept()
+
+    def closeEvent(self, event: QCloseEvent):
+        """窗口关闭事件处理，隐藏而非销毁窗口"""
+        event.ignore()
+        self.hide()

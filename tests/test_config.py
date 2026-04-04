@@ -198,3 +198,40 @@ def test_stability_change_threshold_invalid_fallback():
         from config import Config
         cfg = Config()
         assert cfg.stability_change_threshold == 1.0
+
+
+def test_validate_with_missing_api_key():
+    """测试 validate() 方法检测缺失的 API Key"""
+    with patch.dict(os.environ, {"API_KEY": ""}, clear=False):
+        from config import Config
+        cfg = Config()
+        errors = cfg.validate()
+        assert len(errors) > 0
+        assert "API_KEY" in errors[0]
+
+
+def test_validate_with_valid_config():
+    """测试 validate() 方法对有效配置返回空列表"""
+    with patch.dict(os.environ, {
+        "API_KEY": "test-key",
+        "BASE_URL": "https://api.openai.com/v1",
+        "MODEL": "gpt-4o"
+    }, clear=False):
+        from config import Config
+        cfg = Config()
+        errors = cfg.validate()
+        assert len(errors) == 0
+
+
+def test_validate_with_invalid_base_url():
+    """测试 validate() 方法检测无效的 Base URL 格式"""
+    with patch.dict(os.environ, {
+        "API_KEY": "test-key",
+        "BASE_URL": "invalid-url",
+        "MODEL": "gpt-4o"
+    }, clear=False):
+        from config import Config
+        cfg = Config()
+        errors = cfg.validate()
+        assert len(errors) > 0
+        assert "BASE_URL" in errors[0]

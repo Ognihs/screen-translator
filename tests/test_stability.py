@@ -167,3 +167,37 @@ def test_content_changed_with_zero_threshold_always_true_after_first():
     # 任何非零差异都应返回 True
     result = checker.content_changed(_make_png((1, 1, 1)))
     assert result is True
+
+
+def test_init_rejects_invalid_window_size():
+    """测试 __init__ 拒绝无效的 window_size"""
+    from stability import StabilityChecker
+
+    with pytest.raises(ValueError, match="window_size 必须大于 0"):
+        StabilityChecker(window_size=0, threshold=50.0)
+
+
+def test_init_rejects_invalid_threshold():
+    """测试 __init__ 拒绝无效的 threshold"""
+    from stability import StabilityChecker
+
+    with pytest.raises(ValueError, match="threshold 必须在 0.0-100.0 范围内"):
+        StabilityChecker(window_size=5, threshold=150.0)
+
+
+def test_init_rejects_negative_threshold():
+    """测试 __init__ 拒绝负数的 threshold"""
+    from stability import StabilityChecker
+
+    with pytest.raises(ValueError, match="threshold 必须在 0.0-100.0 范围内"):
+        StabilityChecker(window_size=5, threshold=-10.0)
+
+
+def test_compute_mse_rejects_shape_mismatch():
+    """测试 _compute_mse 拒绝形状不匹配的输入"""
+    from stability import StabilityChecker
+
+    a = np.array([[1, 2], [3, 4]])
+    b = np.array([[1, 2, 3], [4, 5, 6]])
+    with pytest.raises(ValueError, match="图片形状不匹配"):
+        StabilityChecker._compute_mse(a, b)
