@@ -12,7 +12,13 @@ logger = logging.getLogger(__name__)
 
 # 常量定义
 DEFAULT_TIMEOUT = 30.0  # 默认超时时间（秒）
-TRANSLATION_PROMPT_TEMPLATE = "请将图片中的{source_lang}文本翻译为{target_lang}，仅输出翻译结果，不要添加解释"
+TRANSLATION_PROMPT_TEMPLATE = """
+Translate the text in the following image from {source_lang} to {target_lang}.
+
+Follow these specific instructions for formatting the answer:
+* Only output the transcription, with no newlines.
+* When transcribing numbers, write the digits, i.e. write 1.7 and not one point seven, and write 3 instead of three.
+"""
 
 
 @dataclass
