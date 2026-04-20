@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 # 常量定义
 DEFAULT_TIMEOUT = 30.0  # 默认超时时间（秒）
 TRANSLATION_PROMPT_TEMPLATE = """
-Translate the text in the following image from {source_lang} to {target_lang}.
+Translate all visible text in this image from {source_lang} to {target_lang}.
 
-Follow these specific instructions for formatting the answer:
-* Only output the transcription, with no newlines.
-* When transcribing numbers, write the digits, i.e. write 1.7 and not one point seven, and write 3 instead of three.
+Rules:
+- Output ONLY the translated text, nothing else.
+- Preserve the original line breaks and spacing.
+- Write numbers as digits (e.g., 1.7 not "one point seven").
+- Do NOT include any explanation, notes, or the original text.
 """
 
 
@@ -49,8 +51,8 @@ def translate_image(
 
     Args:
         image_data: JPEG 格式的截图 bytes
-        source_lang: 源语言（中文/日语/英语）
-        target_lang: 目标语言（中文/日语/英语）
+        source_lang: 源语言的英文名称（English/Japanese/Chinese）
+        target_lang: 目标语言的英文名称（English/Japanese/Chinese）
         api_key: API 密钥
         base_url: API 基础 URL
         model: 模型名称
@@ -69,23 +71,27 @@ def translate_image(
 
         b64_image = base64.b64encode(image_data).decode("utf-8")
 
-        prompt = TRANSLATION_PROMPT_TEMPLATE.format(source_lang=source_lang, target_lang=target_lang)
+        prompt = TRANSLATION_PROMPT_TEMPLATE.format(
+            source_lang=source_lang, target_lang=target_lang
+        )
 
         kwargs = {
             "model": model,
             "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a precise translator. Translate text found in images as instructed. Output only the translation.",
+                },
                 {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{b64_image}"
-                            },
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"},
                         },
                     ],
-                }
+                },
             ],
             "timeout": timeout,
         }
@@ -110,9 +116,7 @@ def translate_image(
 
     except APITimeoutError:
         logger.warning("翻译超时")
-        return TranslationResult(
-            text="错误：翻译超时，请检查网络连接", is_error=True
-        )
+        return TranslationResult(text="错误：翻译超时，请检查网络连接", is_error=True)
     except APIStatusError as e:
         logger.error(f"API 错误 ({e.status_code}): {e}")
         return TranslationResult(
@@ -121,6 +125,4 @@ def translate_image(
         )
     except Exception as e:
         logger.error(f"翻译异常: {type(e).__name__} — {e}", exc_info=True)
-        return TranslationResult(
-            text=f"错误：{type(e).__name__} — {e}", is_error=True
-        )
+        return TranslationResult(text=f"错误：{type(e).__name__} — {e}", is_error=True)

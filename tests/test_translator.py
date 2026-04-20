@@ -17,8 +17,8 @@ def test_translate_image_success():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="日语",
-            target_lang="中文",
+            source_lang="Japanese",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -40,8 +40,8 @@ def test_translate_image_timeout():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="英语",
-            target_lang="中文",
+            source_lang="English",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -63,8 +63,8 @@ def test_translate_image_api_error():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="英语",
-            target_lang="中文",
+            source_lang="English",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -86,8 +86,8 @@ def test_translate_image_empty_response():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="英语",
-            target_lang="中文",
+            source_lang="English",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -109,8 +109,8 @@ def test_translate_image_whitespace_response():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="英语",
-            target_lang="中文",
+            source_lang="English",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -131,8 +131,8 @@ def test_translate_image_empty_choices():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="英语",
-            target_lang="中文",
+            source_lang="English",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -150,8 +150,8 @@ def test_translate_image_generic_exception():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="英语",
-            target_lang="中文",
+            source_lang="Japanese",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -174,8 +174,8 @@ def test_translate_image_with_reasoning_effort():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="日语",
-            target_lang="中文",
+            source_lang="Japanese",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -199,8 +199,8 @@ def test_translate_image_without_reasoning_effort():
     with patch("translator.OpenAI", return_value=mock_client):
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="日语",
-            target_lang="中文",
+            source_lang="Japanese",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",
@@ -223,8 +223,8 @@ def test_translate_image_with_client():
     with patch("translator.OpenAI") as mock_openai_cls:
         result = translate_image(
             image_data=b"fake-png-bytes",
-            source_lang="日语",
-            target_lang="中文",
+            source_lang="Japanese",
+            target_lang="Chinese",
             api_key="test-key",
             base_url="https://api.example.com/v1",
             model="test-model",

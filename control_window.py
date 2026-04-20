@@ -29,8 +29,15 @@ from border_window import BorderWindow
 from result_window import ResultWindow
 from stability import StabilityChecker
 
-# 支持的语言列表
+# 支持的语言列表（UI 显示用中文）
 SUPPORTED_LANGUAGES = ["中文", "日语", "英语"]
+
+# 语言名称映射：UI 显示名称 -> 英文 API 参数
+LANG_DISPLAY_TO_ENGLISH = {
+    "中文": "Chinese",
+    "日语": "Japanese",
+    "英语": "English",
+}
 
 # 常量定义
 MIN_SELECTION_SIZE = 10  # 最小选区大小（像素）
@@ -446,9 +453,11 @@ class ControlWindow(QWidget):
         self._is_translating = True
         self._set_status(State.TRANSLATING)
 
-        # 获取语言参数
-        source_lang = self._source_lang_combo.currentText()
-        target_lang = self._target_lang_combo.currentText()
+        # 获取语言参数（转换为英文以符合 API 要求）
+        source_lang_cn = self._source_lang_combo.currentText()
+        target_lang_cn = self._target_lang_combo.currentText()
+        source_lang = LANG_DISPLAY_TO_ENGLISH.get(source_lang_cn, source_lang_cn)
+        target_lang = LANG_DISPLAY_TO_ENGLISH.get(target_lang_cn, target_lang_cn)
 
         # 获取推理深度
         reasoning_index = self._reasoning_combo.currentIndex()

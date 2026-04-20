@@ -41,16 +41,16 @@ class TestTranslationWorker:
             
             worker = TranslationWorker(
                 image_data=b"test_image_data",
-                source_lang="日语",
-                target_lang="中文",
+                source_lang="Japanese",
+                target_lang="Chinese",
                 model="gpt-4o",
                 reasoning_effort="medium",
                 client=MagicMock()
             )
             
             assert worker._image_data == b"test_image_data"
-            assert worker._source_lang == "日语"
-            assert worker._target_lang == "中文"
+            assert worker._source_lang == "Japanese"
+            assert worker._target_lang == "Chinese"
             assert worker._model == "gpt-4o"
             assert worker._reasoning_effort == "medium"
             assert worker._cancelled is False
@@ -62,8 +62,8 @@ class TestTranslationWorker:
             
             worker = TranslationWorker(
                 image_data=b"test_image_data",
-                source_lang="日语",
-                target_lang="中文",
+                source_lang="Japanese",
+                target_lang="Chinese",
                 model="gpt-4o"
             )
             
@@ -81,8 +81,8 @@ class TestTranslationWorker:
             # 创建已取消的 worker
             worker = TranslationWorker(
                 image_data=b"test_image_data",
-                source_lang="日语",
-                target_lang="中文",
+                source_lang="Japanese",
+                target_lang="Chinese",
                 model="gpt-4o"
             )
             worker._cancelled = True  # 预先取消
@@ -108,8 +108,8 @@ class TestTranslationWorker:
             
             worker = TranslationWorker(
                 image_data=b"test_image_data",
-                source_lang="日语",
-                target_lang="中文",
+                source_lang="Japanese",
+                target_lang="Chinese",
                 model="gpt-4o"
             )
             
@@ -136,8 +136,8 @@ class TestTranslationWorker:
             
             worker = TranslationWorker(
                 image_data=b"test_image_data",
-                source_lang="日语",
-                target_lang="中文",
+                source_lang="Japanese",
+                target_lang="Chinese",
                 model="gpt-4o"
             )
             
@@ -161,12 +161,18 @@ class TestControlWindowHelpers:
 
     def test_supported_languages(self):
         """测试支持的语言列表"""
-        from control_window import SUPPORTED_LANGUAGES
+        from control_window import SUPPORTED_LANGUAGES, LANG_DISPLAY_TO_ENGLISH
         
         assert "中文" in SUPPORTED_LANGUAGES
         assert "日语" in SUPPORTED_LANGUAGES
         assert "英语" in SUPPORTED_LANGUAGES
         assert len(SUPPORTED_LANGUAGES) == 3
+        
+        # 验证语言映射完整性
+        assert len(LANG_DISPLAY_TO_ENGLISH) == len(SUPPORTED_LANGUAGES)
+        for lang in SUPPORTED_LANGUAGES:
+            assert lang in LANG_DISPLAY_TO_ENGLISH
+            assert LANG_DISPLAY_TO_ENGLISH[lang] in ("Chinese", "Japanese", "English")
 
     def test_state_str_conversion(self):
         """测试状态字符串转换"""
@@ -390,7 +396,7 @@ class TestStabilityChecker:
         
         checker = StabilityChecker(
             window_size=5,
-            threshold=1000,
+            threshold=50.0,
             change_threshold=0.01
         )
         
@@ -404,7 +410,7 @@ class TestStabilityChecker:
         
         checker = StabilityChecker(
             window_size=5,
-            threshold=1000,
+            threshold=50.0,
             change_threshold=0.01
         )
         
