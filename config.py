@@ -23,7 +23,7 @@ class Config:
 
     def __init__(self):
         self.api_key: str = os.getenv("API_KEY", "")
-        self.base_url: str = os.getenv("BASE_URL", "")
+        self.base_url: str = os.getenv("BASE_URL", "https://api.openai.com/v1")
         self.model: str = os.getenv("MODEL", "")
         interval_str = os.getenv("DEFAULT_INTERVAL", "")
         try:
@@ -37,7 +37,8 @@ class Config:
         except ValueError:
             self.jpeg_quality: int = 75
 
-        self.reasoning_effort: str | None = os.getenv("REASONING_EFFORT")
+        val = os.getenv("REASONING_EFFORT")
+        self.reasoning_effort: str | None = val if val else None
 
         poll_interval_str = os.getenv("STABILITY_POLL_INTERVAL", "")
         try:

@@ -2,7 +2,7 @@
 """selector.py 单元测试"""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from PySide6.QtCore import QPoint, QRect, Qt
 
 
@@ -13,7 +13,7 @@ class TestSelectionOverlay:
     def test_normal_initialization(self):
         """测试正常选区创建"""
         from selector import SelectionOverlay
-        
+
         overlay = SelectionOverlay()
 
         # 验证初始化状态
@@ -33,9 +33,10 @@ class TestSelectionOverlay:
         overlay = SelectionOverlay()
 
         # 模拟选区过程中的 ESC 按键
-        with patch.object(overlay, "selection_cancelled") as mock_cancelled, \
-             patch.object(overlay, "close") as mock_close:
-            
+        with (
+            patch.object(overlay, "selection_cancelled") as mock_cancelled,
+            patch.object(overlay, "close") as mock_close,
+        ):
             # 创建真实的 ESC 按键事件
             event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
 
@@ -59,16 +60,17 @@ class TestSelectionOverlay:
         overlay._end_pos = QPoint(105, 105)  # 宽度只有5，小于10
 
         # 模拟鼠标释放事件
-        with patch.object(overlay, "selection_cancelled") as mock_cancelled, \
-             patch.object(overlay, "close") as mock_close:
-            
+        with (
+            patch.object(overlay, "selection_cancelled") as mock_cancelled,
+            patch.object(overlay, "close") as mock_close,
+        ):
             event = QMouseEvent(
                 QMouseEvent.Type.MouseButtonRelease,
                 QPoint(105, 105),
                 QPoint(105, 105),
                 Qt.MouseButton.LeftButton,
                 Qt.MouseButton.LeftButton,
-                Qt.KeyboardModifier.NoModifier
+                Qt.KeyboardModifier.NoModifier,
             )
 
             overlay.mouseReleaseEvent(event)
@@ -89,16 +91,14 @@ class TestSelectionOverlay:
         overlay._start_pos = QPoint(100, 100)
         overlay._end_pos = QPoint(200, 200)  # 宽度100，大于10
 
-        with patch.object(overlay, "selection_made") as mock_made, \
-             patch.object(overlay, "close") as mock_close:
-            
+        with patch.object(overlay, "selection_made") as mock_made, patch.object(overlay, "close") as mock_close:
             event = QMouseEvent(
                 QMouseEvent.Type.MouseButtonRelease,
                 QPoint(200, 200),
                 QPoint(200, 200),
                 Qt.MouseButton.LeftButton,
                 Qt.MouseButton.LeftButton,
-                Qt.KeyboardModifier.NoModifier
+                Qt.KeyboardModifier.NoModifier,
             )
 
             overlay.mouseReleaseEvent(event)
@@ -113,11 +113,12 @@ class TestSelectionOverlay:
         from selector import SelectionOverlay
         from PySide6.QtCore import Qt
 
-        with patch("selector.QWidget.setWindowFlags") as mock_set_flags, \
-             patch("selector.QWidget.setAttribute") as mock_set_attr, \
-             patch("selector.QWidget.setCursor") as mock_set_cursor:
-            
-            overlay = SelectionOverlay()
+        with (
+            patch("selector.QWidget.setWindowFlags") as mock_set_flags,
+            patch("selector.QWidget.setAttribute") as mock_set_attr,
+            patch("selector.QWidget.setCursor") as mock_set_cursor,
+        ):
+            SelectionOverlay()
 
             # 验证窗口标志设置
             mock_set_flags.assert_called_once()
@@ -138,15 +139,13 @@ class TestSelectionOverlay:
         from selector import SelectionOverlay
 
         overlay = SelectionOverlay()
-        
+
         # 预先设置一些状态
         overlay._start_pos = QPoint(100, 100)
         overlay._end_pos = QPoint(200, 200)
         overlay._selection_rect = QRect(100, 100, 100, 100)
 
-        with patch.object(overlay, "show") as mock_show, \
-             patch.object(overlay, "activateWindow") as mock_activate:
-            
+        with patch.object(overlay, "show") as mock_show, patch.object(overlay, "activateWindow") as mock_activate:
             overlay.show_and_select()
 
             # 验证状态被重置
@@ -165,7 +164,7 @@ class TestSelectionOverlay:
         from PySide6.QtGui import QMouseEvent
 
         overlay = SelectionOverlay()
-        
+
         # 设置起始位置
         overlay._start_pos = QPoint(100, 100)
 
@@ -176,7 +175,7 @@ class TestSelectionOverlay:
                 QPoint(200, 200),
                 Qt.MouseButton.NoButton,
                 Qt.MouseButton.LeftButton,
-                Qt.KeyboardModifier.NoModifier
+                Qt.KeyboardModifier.NoModifier,
             )
 
             overlay.mouseMoveEvent(event)
@@ -192,14 +191,14 @@ class TestSelectionOverlay:
         from PySide6.QtGui import QMouseEvent
 
         overlay = SelectionOverlay()
-        
+
         event = QMouseEvent(
             QMouseEvent.Type.MouseButtonPress,
             QPoint(100, 100),
             QPoint(100, 100),
             Qt.MouseButton.LeftButton,
             Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier
+            Qt.KeyboardModifier.NoModifier,
         )
 
         overlay.mousePressEvent(event)
@@ -237,19 +236,17 @@ class TestSelectionOverlay:
         overlay._start_pos = QPoint(0, 0)
         overlay._end_pos = QPoint(10, 100)
 
-        with patch.object(overlay, "selection_made") as mock_made, \
-             patch.object(overlay, "close") as mock_close:
-            
+        with patch.object(overlay, "selection_made") as mock_made, patch.object(overlay, "close"):
             event = QMouseEvent(
                 QMouseEvent.Type.MouseButtonRelease,
                 QPoint(10, 100),
                 QPoint(10, 100),
                 Qt.MouseButton.LeftButton,
                 Qt.MouseButton.LeftButton,
-                Qt.KeyboardModifier.NoModifier
+                Qt.KeyboardModifier.NoModifier,
             )
 
             overlay.mouseReleaseEvent(event)
 
-            # 宽度10 >= 10，高度100 >= 10，应该发出 selection_made
+            # 宽度10 >= 10，高度100 >= 100，应该发出 selection_made
             mock_made.emit.assert_called_once()

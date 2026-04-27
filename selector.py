@@ -1,11 +1,11 @@
 # selector.py
 import logging
 
-logger = logging.getLogger(__name__)
-
 from PySide6.QtCore import Qt, Signal, QRect
 from PySide6.QtGui import QPainter, QPen, QColor, QKeyEvent, QMouseEvent, QPaintEvent
 from PySide6.QtWidgets import QWidget, QApplication
+
+logger = logging.getLogger(__name__)
 
 # 常量定义
 MIN_SELECTION_SIZE = 10  # 最小选区大小（像素）
@@ -29,11 +29,7 @@ class SelectionOverlay(QWidget):
 
     def _setup_ui(self):
         """设置全屏透明遮罩窗口"""
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setCursor(Qt.CursorShape.CrossCursor)
 

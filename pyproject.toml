@@ -17,4 +17,20 @@ dependencies = [
 dev = [
     "pytest>=9.0.2",
     "pytest-qt>=4.5.0",
+    "ruff>=0.12.0",
+    "pyright>=1.1.0",
 ]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+pythonVersion = "3.14"

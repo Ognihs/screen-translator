@@ -2,11 +2,11 @@
 
 import logging
 
-logger = logging.getLogger(__name__)
-
 from PySide6.QtWidgets import QWidget, QTextEdit, QSizeGrip, QVBoxLayout, QLabel, QHBoxLayout
 from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QMouseEvent, QResizeEvent, QCloseEvent
+
+logger = logging.getLogger(__name__)
 
 # 常量定义
 DEFAULT_WIDTH = 400  # 默认宽度
@@ -35,11 +35,7 @@ class ResultWindow(QWidget):
     def _init_ui(self):
         """初始化窗口 UI"""
         # 置顶无边框窗口，使用 Tool 标志避免在任务栏显示
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
         # 初始窗口大小和最小尺寸
         self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
         self.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
@@ -105,19 +101,16 @@ class ResultWindow(QWidget):
 
         # 右下角大小调整手柄
         self._size_grip = QSizeGrip(self)
-        self._size_grip.setStyleSheet(f"""
-            QSizeGrip {{
+        self._size_grip.setStyleSheet("""
+            QSizeGrip {
                 background-color: transparent;
-            }}
-            QSizeGrip:hover {{
+            }
+            QSizeGrip:hover {
                 background-color: rgba(255, 255, 255, 10);
-            }}
+            }
         """)
         # 显式设置 QSizeGrip 初始位置
-        self._size_grip.move(
-            self.width() - self.SIZE_GRIP_SIZE,
-            self.height() - self.SIZE_GRIP_SIZE
-        )
+        self._size_grip.move(self.width() - self.SIZE_GRIP_SIZE, self.height() - self.SIZE_GRIP_SIZE)
         self._size_grip.resize(self.SIZE_GRIP_SIZE, self.SIZE_GRIP_SIZE)
 
         # 初始隐藏
@@ -126,10 +119,7 @@ class ResultWindow(QWidget):
     def resizeEvent(self, event: QResizeEvent):
         """窗口大小改变时更新 QSizeGrip 位置"""
         if self._size_grip is not None:
-            self._size_grip.move(
-                self.width() - self.SIZE_GRIP_SIZE,
-                self.height() - self.SIZE_GRIP_SIZE
-            )
+            self._size_grip.move(self.width() - self.SIZE_GRIP_SIZE, self.height() - self.SIZE_GRIP_SIZE)
             self._size_grip.resize(self.SIZE_GRIP_SIZE, self.SIZE_GRIP_SIZE)
         super().resizeEvent(event)
 

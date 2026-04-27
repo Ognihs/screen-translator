@@ -10,14 +10,14 @@ logger = logging.getLogger(__name__)
 
 def convert_to_jpeg(png_data: bytes, quality: int = 75) -> bytes:
     """将 PNG 图片数据转换为 JPEG 格式。
-    
+
     Args:
         png_data: PNG 格式的图片字节数据
         quality: JPEG 压缩质量，范围 1-95
-    
+
     Returns:
         JPEG 格式的图片字节数据
-    
+
     Raises:
         ValueError: 当 png_data 为空或 quality 超出范围时
     """
@@ -25,17 +25,17 @@ def convert_to_jpeg(png_data: bytes, quality: int = 75) -> bytes:
         raise ValueError("png_data cannot be empty")
     if not 1 <= quality <= 95:
         raise ValueError("quality must be between 1 and 95")
-    
+
     try:
         image = Image.open(io.BytesIO(png_data))
     except (IOError, OSError) as e:
         logger.error(f"无效的 PNG 数据，长度: {len(png_data)} bytes, 错误: {e}", exc_info=True)
         raise ValueError(f"Invalid PNG data: {e}") from e
-    
+
     # 处理带有透明通道的图像（RGBA/LA）或调色板模式（P）
     if image.mode in ("RGBA", "LA", "P"):
         image = image.convert("RGB")
-    
+
     buffer = io.BytesIO()
     try:
         image.save(buffer, format="JPEG", quality=quality)

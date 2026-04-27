@@ -10,11 +10,11 @@ from control_window import ControlWindow
 def _configure_logging():
     """配置日志记录"""
     import os
-    
+
     # 从环境变量读取日志级别，默认 WARNING
     log_level_str = os.getenv("LOG_LEVEL", "WARNING")
     log_level = getattr(logging, log_level_str.upper(), logging.WARNING)
-    
+
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",

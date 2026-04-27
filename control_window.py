@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 class State(StrEnum):
     """应用状态枚举"""
+
     READY = "就绪"
     RUNNING = "运行中"
     PAUSED = "已暂停"
@@ -62,9 +63,15 @@ class TranslationWorker(QThread):
     # 信号：翻译失败时发送错误信息
     translation_failed = Signal(str)
 
-    def __init__(self, image_data: bytes, source_lang: str, target_lang: str,
-                 model: str, reasoning_effort: ReasoningEffort | None = None,
-                 client: OpenAI | None = None):
+    def __init__(
+        self,
+        image_data: bytes,
+        source_lang: str,
+        target_lang: str,
+        model: str,
+        reasoning_effort: ReasoningEffort | None = None,
+        client: OpenAI | None = None,
+    ):
         super().__init__()
         self._image_data = image_data
         self._source_lang = source_lang
@@ -272,10 +279,7 @@ class ControlWindow(QWidget):
 
         self._select_btn.setEnabled(is_ready)
         # 开始按钮：就绪时可启动，暂停时可恢复
-        self._start_btn.setEnabled(
-            (is_ready and self._selection is not None and self._config.has_api_key)
-            or is_paused
-        )
+        self._start_btn.setEnabled((is_ready and self._selection is not None and self._config.has_api_key) or is_paused)
         self._pause_btn.setEnabled(is_running)
         self._pause_btn.setText("暂停" if is_running else "继续")
         self._stop_btn.setEnabled(is_running or is_paused)
@@ -474,9 +478,7 @@ class ControlWindow(QWidget):
 
         if self._api_client is None or self._api_client_url != base_url:
             logger.info(f"创建新的 API 客户端，base_url: {base_url}")
-            self._api_client = OpenAI(
-                api_key=api_key, base_url=base_url
-            )
+            self._api_client = OpenAI(api_key=api_key, base_url=base_url)
             self._api_client_url = base_url
 
         # 创建后台翻译线程

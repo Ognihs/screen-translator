@@ -4,9 +4,9 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-ReasoningEffort = Literal["none", "low", "medium", "high"]
-
 from openai import APITimeoutError, APIStatusError, OpenAI
+
+ReasoningEffort = Literal["none", "low", "medium", "high"]
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,10 @@ def translate_image(
 
         b64_image = base64.b64encode(image_data).decode("utf-8")
 
-        prompt = TRANSLATION_PROMPT_TEMPLATE.format(
-            source_lang=source_lang, target_lang=target_lang
+        prompt = TRANSLATION_PROMPT_TEMPLATE.format(source_lang=source_lang, target_lang=target_lang)
+
+        system_content = (
+            "You are a precise translator. Translate text found in images as instructed. Output only the translation."
         )
 
         kwargs = {
@@ -80,7 +82,7 @@ def translate_image(
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a precise translator. Translate text found in images as instructed. Output only the translation.",
+                    "content": system_content,
                 },
                 {
                     "role": "user",

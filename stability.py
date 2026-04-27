@@ -39,7 +39,12 @@ class StabilityChecker:
         self._mse_history: collections.deque[float] = collections.deque(maxlen=window_size)
         self._last_image: np.ndarray | None = None
         self._reference_image: np.ndarray | None = None
-        logger.debug(f"初始化 StabilityChecker: window_size={window_size}, threshold={threshold}, change_threshold={change_threshold}")
+        logger.debug(
+            "初始化 StabilityChecker: window_size=%d, threshold=%.1f, change_threshold=%.1f",
+            window_size,
+            threshold,
+            change_threshold,
+        )
 
     def reset(self) -> None:
         """清空滑动窗口和历史图片缓存"""
@@ -74,7 +79,7 @@ class StabilityChecker:
             logger.debug(f"选区变化: {self._reference_image.shape} -> {image.shape}")
             return True
         mse = self._compute_mse(self._reference_image, image)
-        rmse_percent = (mse ** 0.5) / 255.0 * 100.0
+        rmse_percent = (mse**0.5) / 255.0 * 100.0
         changed = rmse_percent > self._change_threshold
         logger.debug(f"内容变化检测: RMSE%={rmse_percent:.4f}, 阈值={self._change_threshold}, 变化={changed}")
         return changed
@@ -109,7 +114,7 @@ class StabilityChecker:
             return False
 
         mse = self._compute_mse(self._last_image, image)
-        rmse_percent = (mse ** 0.5) / 255.0 * 100.0
+        rmse_percent = (mse**0.5) / 255.0 * 100.0
         self._last_image = image
         self._mse_history.append(mse)
         logger.debug(f"MSE: {mse:.4f}, RMSE%: {rmse_percent:.4f}, 窗口: {len(self._mse_history)}/{self._window_size}")

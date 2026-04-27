@@ -49,19 +49,19 @@ def test_convert_to_jpeg_basic():
     from capture import convert_to_jpeg
     from PIL import Image
     import io
-    
+
     # 创建一个简单的 PNG 图像
     img = Image.new("RGB", (100, 100), color="red")
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     png_data = buffer.getvalue()
-    
+
     jpeg_data = convert_to_jpeg(png_data, quality=75)
-    
+
     assert isinstance(jpeg_data, bytes)
     assert len(jpeg_data) > 0
     # JPEG 文件以 FF D8 FF 开头
-    assert jpeg_data[:3] == b'\xff\xd8\xff'
+    assert jpeg_data[:3] == b"\xff\xd8\xff"
 
 
 def test_convert_to_jpeg_with_alpha():
@@ -69,18 +69,18 @@ def test_convert_to_jpeg_with_alpha():
     from capture import convert_to_jpeg
     from PIL import Image
     import io
-    
+
     # 创建一个带透明通道的 RGBA 图像
     img = Image.new("RGBA", (100, 100), color=(255, 0, 0, 128))
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     png_data = buffer.getvalue()
-    
+
     jpeg_data = convert_to_jpeg(png_data, quality=75)
-    
+
     assert isinstance(jpeg_data, bytes)
     assert len(jpeg_data) > 0
-    assert jpeg_data[:3] == b'\xff\xd8\xff'
+    assert jpeg_data[:3] == b"\xff\xd8\xff"
 
 
 def test_convert_to_jpeg_quality_affects_size():
@@ -88,16 +88,16 @@ def test_convert_to_jpeg_quality_affects_size():
     from capture import convert_to_jpeg
     from PIL import Image
     import io
-    
+
     # 创建一个有细节的图像
     img = Image.new("RGB", (200, 200), color="blue")
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     png_data = buffer.getvalue()
-    
+
     low_quality = convert_to_jpeg(png_data, quality=10)
     high_quality = convert_to_jpeg(png_data, quality=95)
-    
+
     # 低质量应该比高质量文件更小
     assert len(low_quality) < len(high_quality)
 
@@ -105,7 +105,7 @@ def test_convert_to_jpeg_quality_affects_size():
 def test_convert_to_jpeg_invalid_empty_data():
     """测试空数据抛出异常"""
     from capture import convert_to_jpeg
-    
+
     with pytest.raises(ValueError, match="png_data cannot be empty"):
         convert_to_jpeg(b"")
 
@@ -115,14 +115,14 @@ def test_convert_to_jpeg_invalid_quality():
     from capture import convert_to_jpeg
     from PIL import Image
     import io
-    
+
     img = Image.new("RGB", (10, 10), color="red")
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     png_data = buffer.getvalue()
-    
+
     with pytest.raises(ValueError, match="quality must be between 1 and 95"):
         convert_to_jpeg(png_data, quality=0)
-    
+
     with pytest.raises(ValueError, match="quality must be between 1 and 95"):
         convert_to_jpeg(png_data, quality=100)

@@ -42,7 +42,7 @@ def test_check_returns_true_when_all_below_threshold():
     # 相同图片，MSE=0
     assert checker.check(_make_png((255, 0, 0))) is False  # 窗口: [0]，未满
     assert checker.check(_make_png((255, 0, 0))) is False  # 窗口: [0, 0]，未满
-    assert checker.check(_make_png((255, 0, 0))) is True   # 窗口: [0, 0, 0]，满且全<50
+    assert checker.check(_make_png((255, 0, 0))) is True  # 窗口: [0, 0, 0]，满且全<50
 
 
 def test_check_returns_false_when_any_above_threshold():
@@ -50,9 +50,9 @@ def test_check_returns_false_when_any_above_threshold():
     from stability import StabilityChecker
 
     checker = StabilityChecker(window_size=3, threshold=3.0)
-    checker.check(_make_png((0, 0, 0)))        # 存储首帧
-    checker.check(_make_png((0, 0, 0)))         # 窗口: [0]
-    checker.check(_make_png((255, 255, 255)))   # 窗口: [0, 高MSE]
+    checker.check(_make_png((0, 0, 0)))  # 存储首帧
+    checker.check(_make_png((0, 0, 0)))  # 窗口: [0]
+    checker.check(_make_png((255, 255, 255)))  # 窗口: [0, 高MSE]
     # 窗口未满（只有2个），所以返回 False
     assert checker.check(_make_png((0, 0, 0))) is False  # 窗口: [0, 高MSE, 高MSE]
 
@@ -65,7 +65,7 @@ def test_check_mse_at_exact_threshold():
     checker.check(_make_png((0, 0, 0)))
     # MSE=0 恰好等于阈值 0.0
     assert checker.check(_make_png((0, 0, 0))) is False  # 窗口未满
-    assert checker.check(_make_png((0, 0, 0))) is True   # 窗口满，MSE=0 <= 0.0
+    assert checker.check(_make_png((0, 0, 0))) is True  # 窗口满，MSE=0 <= 0.0
 
 
 def test_reset_clears_state():
@@ -86,8 +86,8 @@ def test_sliding_window_discards_old_values():
     from stability import StabilityChecker
 
     checker = StabilityChecker(window_size=2, threshold=3.0)
-    checker.check(_make_png((0, 0, 0)))         # 存储首帧
-    checker.check(_make_png((255, 255, 255)))   # 窗口: [高MSE]
+    checker.check(_make_png((0, 0, 0)))  # 存储首帧
+    checker.check(_make_png((255, 255, 255)))  # 窗口: [高MSE]
     # 现在连续两张相同图片，MSE=0
     assert checker.check(_make_png((255, 255, 255))) is False  # 窗口: [高MSE, 0]
     # 旧的 高MSE 被滑出，窗口: [0, 0]

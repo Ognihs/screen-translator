@@ -2,11 +2,11 @@
 
 import logging
 
-logger = logging.getLogger(__name__)
-
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QPainter, QPen, QColor, QPaintEvent
+
+logger = logging.getLogger(__name__)
 
 # 常量定义
 CORNER_RADIUS = 8  # 圆角半径
@@ -78,5 +78,6 @@ class BorderWindow(QWidget):
             adjust,
             self._region.width() - self.BORDER_WIDTH,
             self._region.height() - self.BORDER_WIDTH,
-            CORNER_RADIUS, CORNER_RADIUS  # xRadius, yRadius
+            CORNER_RADIUS,
+            CORNER_RADIUS,  # xRadius, yRadius
         )

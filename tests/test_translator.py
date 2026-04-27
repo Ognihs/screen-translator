@@ -1,5 +1,4 @@
 # tests/test_translator.py
-import pytest
 from unittest.mock import patch, MagicMock
 
 from translator import translate_image, TranslationResult
