@@ -15,12 +15,22 @@
 - lint 检查：`uv run ruff check .`
 - lint 自动修复：`uv run ruff check --fix .`
 - 类型检查：`uv run pyright`
-- 推荐验证顺序：`ruff format . && ruff check . && pyright && pytest tests/ -v`
+- 推荐验证顺序：`uv run ruff format . ; uv run ruff check . ; uv run pyright ; uv run pytest tests/ -v`
+
+## 依赖
+
+- PySide6 — GUI 框架
+- mss — 屏幕截图
+- openai — OpenAI 兼容 API 客户端
+- numpy + Pillow — 稳定性检测中的图像处理
+- python-dotenv — 环境变量加载
+- 开发依赖：pytest、pytest-qt（Qt 信号/槽测试）、ruff、pyright
 
 ## 环境变量
 
-- 必须从 `.env.example` 复制到 `.env`，`API_KEY` 为必填项
-- `LOG_LEVEL` 控制日志级别（默认 `WARNING`，可设为 `DEBUG`）
+- 必须从 `.env.example` 复制到 `.env`
+- 必填：`API_KEY`、`MODEL`
+- 可选：`BASE_URL`（默认 OpenAI）、`DEFAULT_INTERVAL`（秒）、`JPEG_QUALITY`（1-95）、`REASONING_EFFORT`（none/low/medium/high）、`STABILITY_POLL_INTERVAL`（ms）、`STABILITY_WINDOW_SIZE`、`STABILITY_THRESHOLD`（RMSE%）、`STABILITY_CHANGE_THRESHOLD`（RMSE%）、`LOG_LEVEL`
 - `config.py` 在**模块导入时**调用 `load_dotenv()`，测试中需用 `patch.dict(os.environ, {...})` 覆盖环境变量
 
 ## 项目架构
@@ -49,7 +59,7 @@ main.py → ControlWindow
 ## 测试注意事项
 
 - 测试使用 `unittest.mock` 的 `patch`/`MagicMock`，无 conftest.py
-- GUI 相关测试（`test_control_window.py`、`test_stmt_window.py`、`test_selector.py`）目前主要测试逻辑而非实际控件，大量使用 `MagicMock` 模拟对象
+- GUI 相关测试（`test_control_window.py`、`test_result_window.py`、`test_selector.py`）目前主要测试逻辑而非实际控件，大量使用 `MagicMock` 模拟对象
 - 稳定性测试（`test_stability.py`）通过 `_make_png()` 辅助函数生成真实 PNG bytes
 - `config.py` 测试必须用 `patch.dict(os.environ)` 覆盖环境变量，因为 `load_dotenv()` 在导入时执行
 
